@@ -1,7 +1,8 @@
-import type { Unit } from '../models/types';
+import type { Unit, Building } from '../models/types';
 import { distance, normalize, multiply, add, angleBetween } from '../utils/math';
+import { findPath } from '../utils/pathfinding';
 
-export const updateMovement = (units: Record<string, Unit>, deltaTime: number): Record<string, Unit> => {
+export const updateMovement = (units: Record<string, Unit>, buildings: Record<string, Building>, deltaTime: number): Record<string, Unit> => {
   const updatedUnits = { ...units };
   let changed = false;
 
@@ -11,26 +12,47 @@ export const updateMovement = (units: Record<string, Unit>, deltaTime: number): 
     const unit = updatedUnits[id];
     
     if (unit.state === 'moving' && unit.targetPosition) {
-      const dist = distance(unit.position, unit.targetPosition);
+      // Calculate path if missing
+      if (!unit.path || unit.path.length === 0) {
+          unit.path = findPath(unit.position, unit.targetPosition, buildings);
+      }
+
+      const nextWaypoint = unit.path[0];
+
+      if (!nextWaypoint) {
+          // Reached destination or no path
+          updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined };
+          changed = true;
+          continue;
+      }
+
+      const distToWaypoint = distance(unit.position, nextWaypoint);
       
-      // Reached destination
-      if (dist < 5) {
-        updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined };
+      // Reached current waypoint
+      if (distToWaypoint < 5) {
+        unit.path.shift(); // Remove current waypoint
+
+        if (unit.path.length === 0) {
+            // Reached final destination
+            updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined };
+        } else {
+             updatedUnits[id] = { ...unit }; // Trigger state update
+        }
         changed = true;
         continue;
       }
 
-      // Move towards target
+      // Move towards next waypoint
       const dir = normalize({
-        x: unit.targetPosition.x - unit.position.x,
-        y: unit.targetPosition.y - unit.position.y,
+        x: nextWaypoint.x - unit.position.x,
+        y: nextWaypoint.y - unit.position.y,
       });
       
       const velocity = multiply(dir, unit.speed * dtSeconds);
       const newPos = add(unit.position, velocity);
       
       // Update rotation
-      const targetRotation = angleBetween(unit.position, unit.targetPosition);
+      const targetRotation = angleBetween(unit.position, nextWaypoint);
       
       updatedUnits[id] = { ...unit, position: newPos, rotation: targetRotation };
       changed = true;

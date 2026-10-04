@@ -35,6 +35,7 @@ export interface Unit extends GameObject {
   lastAttackTime: number;
   targetId?: string; // Entity being attacked or harvested
   targetPosition?: Vector2; // Move destination
+  path?: Vector2[]; // A* waypoints to destination
   state: UnitState;
   rotation: number; // in radians
   carryingResource?: number; // for harvester

@@ -96,6 +96,15 @@ const Renderer: React.FC = () => {
               ctx.beginPath();
               ctx.arc(unit.position.x, unit.position.y, 14, 0, Math.PI * 2);
               ctx.stroke();
+
+              // Draw path if moving
+              if (unit.path && unit.path.length > 0) {
+                  ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                  ctx.beginPath();
+                  ctx.moveTo(unit.position.x, unit.position.y);
+                  unit.path.forEach(wp => ctx.lineTo(wp.x, wp.y));
+                  ctx.stroke();
+              }
           }
           
           // Health bar
