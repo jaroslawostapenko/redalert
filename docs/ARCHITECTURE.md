@@ -41,17 +41,28 @@ On every frame, the loop calculates the `deltaTime` (time elapsed since the last
 
 Systems are where the business logic of the RTS resides. They process entities based on their components (properties) and current states.
 
-### Movement System (`src/systems/movement.ts`)
-Iterates over all units whose state is `moving`. It calculates the direction vector toward their `targetPosition`, applies the unit's `speed` and `deltaTime`, and updates the unit's `position` and `rotation`.
+### Movement & Pathfinding System (`src/systems/movement.ts`)
+Iterates over all units whose state is `moving`. By utilizing an A* pathfinding algorithm (`src/utils/pathfinding.ts`), it computes optimal routes around buildings and obstacles, generating waypoints. It then applies the unit's `speed` and `deltaTime` to move the unit along the path.
 
-### Combat System (`src/systems/combat.ts`)
+### Combat & Projectiles System (`src/systems/combat.ts` & `src/systems/projectiles.ts`)
 Iterates over all units and structures that have attack capabilities. It handles:
 - Checking if targets are in `range`.
 - Managing `attackCooldown` and `lastAttackTime`.
-- Applying `damage` to the target's `health`.
-- Handling entity death (removing them from state, resetting target references).
+- Spawning `Projectile` entities when attacks are executed.
+- The Projectiles system iterates over active projectiles, moving them towards their targets, applying `damage` on impact, and handling entity death.
 
-*Note: Harvesting logic is also generally handled alongside systems, updating resources and player money over time.*
+### Fog of War System (`src/systems/fogOfWar.ts`)
+Iterates through all player-owned units and buildings to calculate visibility based on their `vision` property. Updates a 2D grid overlay to track unexplored vs. visible tiles.
+
+### Resource Harvesting System (`src/systems/harvesting.ts`)
+Manages the state machine for Harvesters. Handles pathing to resource nodes, accumulating resources over time while decrementing the node's payload, pathing to a friendly Refinery, and depositing resources to increase player funds.
+
+### AI Systems (`src/systems/aiDirector.ts` & `src/systems/aiTactics.ts`)
+- **Director**: Runs periodically to manage the enemy faction's economy and base construction, following a structured build order.
+- **Tactics**: Continuously trains military units and rallies them. Upon reaching a critical mass, it issues attack-move commands against player structures.
+
+### Audio System (`src/systems/audioSystem.ts`)
+A centralized manager that intercepts game events (selection, movement, construction completion) to play appropriate sound effects, complete with anti-spam cooldowns and user-configurable settings.
 
 ## Rendering and Components
 
@@ -59,11 +70,13 @@ Rendering is entirely handled via React. Since Zustand provides fine-grained sub
 
 ### Viewport and Renderer
 - **`Game.tsx`**: The root component which mounts the viewport and UI overlays, and initializes the game loop.
-- **`Viewport.tsx`**: Handles zooming, panning, and mouse interactions (box selection, right-clicking to command units).
-- **`Renderer.tsx`**: Iterates through state entities (units, buildings, resources) and renders them as DOM elements positioned absolutely relative to the viewport.
+- **`Viewport.tsx`**: Handles zooming, panning, and mouse/keyboard interactions (box selection, commanding units, double-click matching, and control group assignments).
+- **`Renderer.tsx`**: Iterates through state entities (units, buildings, resources, projectiles) and overlays (Fog of War, Placement Ghosts) rendering them as DOM elements positioned absolutely relative to the viewport.
 
 ### UI Overlay
-- **`UIOverlay.tsx`**: Provides the heads-up display. It renders the minimap, resource counters, build menus, and current selection information.
+- **`UIOverlay.tsx`**: Provides the heads-up display. It renders the `Minimap`, resource counters, build queues, and interactive placement modes.
+- **`Minimap.tsx`**: A secondary renderer that scales down the map bounds to provide real-time radar capabilities and quick camera navigation.
+- **`PlacementGhost.tsx`**: Renders a translucent, grid-snapped footprint during building placement to signify visual overlap/validity.
 
 ## Adding New Features
 
