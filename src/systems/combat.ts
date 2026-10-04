@@ -1,26 +1,69 @@
-import type { Unit, Building, ResourceNode, PlayerState } from '../models/types';
+import type { Unit, Building, ResourceNode, PlayerState, Projectile } from '../models/types';
 import { distance, normalize, multiply, add } from '../utils/math';
-import {} from '../constants/gameData';
+import { v4 as uuidv4 } from 'uuid';
 
 export const updateCombatAndHarvest = (
   units: Record<string, Unit>,
   buildings: Record<string, Building>,
   resources: Record<string, ResourceNode>,
   players: Record<string, PlayerState>,
+  projectiles: Projectile[],
   deltaTime: number,
-  _gameTime: number
+  gameTime: number
 ) => {
   const newUnits = { ...units };
   const newBuildings = { ...buildings };
   const newResources = { ...resources };
   const newPlayers = { ...players };
+  const newProjectiles = [...projectiles];
   let unitsChanged = false;
   let buildingsChanged = false;
   let resourcesChanged = false;
   let playersChanged = false;
+  let projectilesChanged = false;
 
   for (const id in newUnits) {
     const unit = newUnits[id];
+
+    // COMBAT LOGIC
+    if (unit.state === 'attacking' && unit.targetId && unit.damage > 0) {
+      const targetUnit = newUnits[unit.targetId];
+      const targetBuilding = newBuildings[unit.targetId];
+      const target = targetUnit || targetBuilding;
+
+      if (!target) {
+        newUnits[id] = { ...unit, state: 'idle', targetId: undefined };
+        unitsChanged = true;
+        continue;
+      }
+
+      const dist = distance(unit.position, target.position);
+
+      if (dist <= unit.range) {
+        // In range, check cooldown
+        if (gameTime - unit.lastAttackTime >= unit.attackCooldown) {
+          // Spawn projectile
+          newProjectiles.push({
+            id: uuidv4(),
+            position: { ...unit.position },
+            targetId: unit.targetId,
+            speed: 300, // Pixels per second
+            damage: unit.damage,
+            owner: unit.owner,
+          });
+
+          newUnits[id] = { ...unit, lastAttackTime: gameTime };
+          unitsChanged = true;
+          projectilesChanged = true;
+        }
+      } else {
+        // Out of range, move towards target
+        const dir = normalize({ x: target.position.x - unit.position.x, y: target.position.y - unit.position.y });
+        const velocity = multiply(dir, unit.speed * (deltaTime / 1000));
+        newUnits[id] = { ...unit, position: add(unit.position, velocity) };
+        unitsChanged = true;
+      }
+    }
 
     // HARVESTING LOGIC
     if (unit.state === 'harvesting' && unit.targetId && unit.unitType === 'harvester') {
@@ -66,5 +109,6 @@ export const updateCombatAndHarvest = (
     buildings: buildingsChanged ? newBuildings : buildings,
     resources: resourcesChanged ? newResources : resources,
     players: playersChanged ? newPlayers : players,
+    projectiles: projectilesChanged ? newProjectiles : projectiles,
   };
 };

@@ -167,11 +167,22 @@ const Viewport: React.FC = () => {
             }
         } else if (isRightClick) {
             if (selection.length > 0) {
-                 commandUnits({
-                     type: 'move',
-                     targetPosition: worldPos,
-                     unitIds: selection
-                 });
+                if (clickedId) {
+                    const target = units[clickedId];
+                    if (target.owner !== 'player') {
+                        commandUnits({
+                            type: 'attack',
+                            targetId: clickedId,
+                            unitIds: selection
+                        });
+                    }
+                } else {
+                    commandUnits({
+                        type: 'move',
+                        targetPosition: worldPos,
+                        unitIds: selection
+                    });
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { updateMovement } from '../systems/movement';
 import { updateCombatAndHarvest } from '../systems/combat';
 import { updateFogOfWar } from '../systems/fogOfWar';
+import { updateProjectiles } from '../systems/projectiles';
 import { GAME_CONFIG } from '../constants/gameData';
 
 export const useGameLoop = () => {
@@ -28,21 +29,30 @@ export const useGameLoop = () => {
                 state.buildings, 
                 state.resources, 
                 state.players, 
+                state.projectiles,
                 dt, 
                 state.gameTime
             );
 
+            const projResult = updateProjectiles(
+                combatResult.projectiles,
+                combatResult.units,
+                combatResult.buildings,
+                dt
+            );
+
             const nextFogOfWar = updateFogOfWar({
                 ...state,
-                units: combatResult.units,
-                buildings: combatResult.buildings,
+                units: projResult.units,
+                buildings: projResult.buildings,
             });
 
             return {
-                units: combatResult.units,
-                buildings: combatResult.buildings,
+                units: projResult.units,
+                buildings: projResult.buildings,
                 resources: combatResult.resources,
                 players: combatResult.players,
+                projectiles: projResult.projectiles,
                 gameTime: state.gameTime + dt,
                 fogOfWar: nextFogOfWar
             };

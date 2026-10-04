@@ -100,6 +100,16 @@ export interface GameStateData {
     buildingType: string | null;
     queueItemId: string | null;
   };
+  projectiles: Projectile[];
+}
+
+export interface Projectile {
+  id: string;
+  position: Vector2;
+  targetId: string; // The ID of the unit/building being targeted
+  speed: number;
+  damage: number;
+  owner: PlayerId;
 }
 
 export type BuildQueueStatus = 'queued' | 'building' | 'ready_to_place';
