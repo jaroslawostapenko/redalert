@@ -6,6 +6,7 @@ import {  } from '../../utils/math';
 import { worldToGrid } from '../../utils/geometry';
 import { GAME_CONFIG, BUILDING_DATA } from '../../constants/gameData';
 import Renderer from './Renderer';
+import ParticleRenderer from './ParticleRenderer';
 import { PlacementGhost } from '../ui/PlacementGhost';
 
 const Viewport: React.FC = () => {
@@ -211,6 +212,7 @@ const Viewport: React.FC = () => {
       onContextMenu={(e) => { e.preventDefault(); handleClick(e); }}
     >
       <Renderer />
+      <ParticleRenderer />
       {placementMode.active && <PlacementGhost />}
     </div>
   );

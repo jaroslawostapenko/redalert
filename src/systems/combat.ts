@@ -1,6 +1,7 @@
 import type { Unit, Building, ResourceNode, PlayerState, Projectile } from '../models/types';
 import { distance, normalize, multiply, add } from '../utils/math';
 import { v4 as uuidv4 } from 'uuid';
+import { particleSystem } from './particles';
 
 export const updateCombatAndHarvest = (
   units: Record<string, Unit>,
@@ -51,6 +52,13 @@ export const updateCombatAndHarvest = (
             damage: unit.damage,
             owner: unit.owner,
           });
+
+          const dirToTarget = normalize({ x: target.position.x - unit.position.x, y: target.position.y - unit.position.y });
+          particleSystem.spawnEmitter('muzzleFlash', unit.position, dirToTarget);
+
+          if (unit.unitType === 'tank') {
+             particleSystem.spawnEmitter('smoke', unit.position, {x: -dirToTarget.x, y: -dirToTarget.y});
+          }
 
           newUnits[id] = { ...unit, lastAttackTime: gameTime };
           unitsChanged = true;
