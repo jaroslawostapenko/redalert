@@ -44,6 +44,11 @@ const initialState: GameStateData = {
   selection: [],
   gameTime: 0,
   buildQueue: [],
+  // We will initialize fogOfWar as a 1D array with dimensions:
+  // Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) x Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)
+  // But wait, the state needs to be initialized outside components so it's a bit tricky to dynamically get it from GAME_CONFIG,
+  // though GAME_CONFIG is available here.
+  fogOfWar: new Array(Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) * Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)).fill(0),
 };
 
 export const useGameStore = create<GameState>((set, get) => ({

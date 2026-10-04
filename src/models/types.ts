@@ -89,6 +89,12 @@ export interface GameStateData {
   selection: string[];
   gameTime: number;
   buildQueue: BuildQueueItem[];
+  // fogOfWar represents a 2D grid.
+  // We can use a 1D array of integers to map to a 2D grid:
+  // 0: Unexplored (black)
+  // 1: Explored but not visible (semi-transparent)
+  // 2: Currently visible (transparent)
+  fogOfWar: number[];
 }
 
 export interface BuildQueueItem {
