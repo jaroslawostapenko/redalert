@@ -101,6 +101,10 @@ export interface GameStateData {
     queueItemId: string | null;
   };
   projectiles: Projectile[];
+  audio: {
+    muted: boolean;
+    volume: number; // 0.0 to 1.0
+  };
 }
 
 export interface Projectile {

@@ -11,6 +11,7 @@ import type {
   ResourceNode,
 } from '../models/types';
 import { GAME_CONFIG, UNIT_DATA, BUILDING_DATA } from '../constants/gameData';
+import { audioSystem } from '../systems/audioSystem';
 
 interface GameState extends GameStateData {
   // Actions
@@ -55,6 +56,10 @@ const initialState: GameStateData = {
     queueItemId: null,
   },
   projectiles: [],
+  audio: {
+    muted: false,
+    volume: 1.0,
+  },
 };
 
 interface GameStateActions {
@@ -70,6 +75,7 @@ interface GameStateActions {
   setPlacementMode: (buildingType: string, queueItemId: string) => void;
   cancelPlacementMode: () => void;
   completePlacement: (position: Vector2) => void;
+  setAudioPreferences: (prefs: Partial<GameStateData['audio']>) => void;
 }
 
 export const useGameStore = create<GameState & GameStateActions>((set, get) => ({
@@ -113,10 +119,21 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
       });
 
       // Set new selection
+      let selectedPlayerEntity = false;
       ids.forEach((id) => {
-        if (newUnits[id]) newUnits[id] = { ...newUnits[id], selected: true };
-        if (newBuildings[id]) newBuildings[id] = { ...newBuildings[id], selected: true };
+        if (newUnits[id]) {
+            newUnits[id] = { ...newUnits[id], selected: true };
+            if (newUnits[id].owner === 'player') selectedPlayerEntity = true;
+        }
+        if (newBuildings[id]) {
+            newBuildings[id] = { ...newBuildings[id], selected: true };
+            if (newBuildings[id].owner === 'player') selectedPlayerEntity = true;
+        }
       });
+
+      if (selectedPlayerEntity) {
+          audioSystem.play('acknowledge', state.audio.volume, state.audio.muted);
+      }
 
       return { selection: ids, units: newUnits, buildings: newBuildings };
     });
@@ -124,10 +141,12 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
 
   commandUnits: (command) => {
     set((state) => {
+      let issuedCommand = false;
       const newUnits = { ...state.units };
       command.unitIds.forEach((id) => {
         const unit = newUnits[id];
         if (unit && unit.owner === 'player') {
+          issuedCommand = true;
           newUnits[id] = {
             ...unit,
             targetPosition: command.targetPosition,
@@ -136,6 +155,15 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
           };
         }
       });
+
+      if (issuedCommand) {
+          if (command.type === 'move' || command.type === 'harvest') {
+              audioSystem.play('moving', state.audio.volume, state.audio.muted);
+          } else if (command.type === 'attack') {
+              audioSystem.play('attack', state.audio.volume, state.audio.muted);
+          }
+      }
+
       return { units: newUnits };
     });
   },
@@ -303,11 +331,13 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
   },
 
   completePlacement: (position) => {
-    const { placementMode, buildQueue } = get();
+    const { placementMode, buildQueue, audio } = get();
     if (!placementMode.active || !placementMode.buildingType || !placementMode.queueItemId) return;
 
     const buildingType = placementMode.buildingType as keyof typeof BUILDING_DATA;
     get().spawnBuilding(buildingType, position, 'player');
+
+    audioSystem.play('building_complete', audio.volume, audio.muted);
 
     set({
       placementMode: {
@@ -317,5 +347,11 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
       },
       buildQueue: buildQueue.filter((item) => item.id !== placementMode.queueItemId),
     });
+  },
+
+  setAudioPreferences: (prefs) => {
+    set((state) => ({
+      audio: { ...state.audio, ...prefs },
+    }));
   }
 }));
