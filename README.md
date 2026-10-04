@@ -9,13 +9,19 @@ This project is a minimal but feature-rich foundation for an RTS game set in the
 - **React-based Rendering**: Uses standard React components to render the game world and UI efficiently.
 - **State Management**: Powered by Zustand for lightweight, fast, and scalable global game state.
 - **Game Systems**: Includes basic RTS systems separated from state logic:
-  - Movement System (handling unit pathing and movement towards targets).
-  - Combat System (handling targeting, cooldowns, and damage).
+  - **Movement System**: Incorporates A* pathfinding to intelligently navigate around buildings and obstacles.
+  - **Combat System**: Includes ranged targeting, attack cooldowns, and a projectile physics system with visual effects.
+  - **Harvesting System**: Automated Ore Trucks that gather resources and return them to the refinery.
+  - **Fog of War**: Explore the map and maintain visibility around your active units and structures.
+  - **AI Director & Tactics**: A basic enemy AI that manages its economy, constructs a base, builds military units, and executes attacks on the player.
+  - **Audio System**: Immersive sound effects for user feedback and game events.
 - **Entities**: Supports classic units (Rifleman, Medium Tank, Ore Truck, Engineer), buildings (Construction Yard, Power Plant, Barracks, War Factory, Ore Refinery, Pillbox), and resources (Ore, Gems) with Allies and Soviet factions.
 - **Core Mechanics**:
-  - Entity selection.
+  - Advanced Entity selection (box selection, double-click matching, and control groups).
   - Issuing commands (move, attack, harvest).
   - Building/Unit queuing and economy (money, power management).
+  - Interactive building placement (ghost footprints and collision detection).
+  - Minimap navigation and radar.
 - **Configurable Data**: Centralized configurations in `src/constants/gameData.ts` for unit stats, building costs, map sizes, and game rules.
 
 ## Getting Started

@@ -11,6 +11,7 @@ import type {
   ResourceNode,
 } from '../models/types';
 import { GAME_CONFIG, UNIT_DATA, BUILDING_DATA } from '../constants/gameData';
+import { audioSystem } from '../systems/audioSystem';
 
 interface GameState extends GameStateData {
   // Actions
@@ -55,7 +56,10 @@ const initialState: GameStateData = {
     queueItemId: null,
   },
   projectiles: [],
-  controlGroups: {},
+  audio: {
+    muted: false,
+    volume: 1.0,
+  },
 };
 
 interface GameStateActions {
@@ -71,9 +75,7 @@ interface GameStateActions {
   setPlacementMode: (buildingType: string, queueItemId: string) => void;
   cancelPlacementMode: () => void;
   completePlacement: (position: Vector2) => void;
-  assignControlGroup: (group: number, ids: string[]) => void;
-  selectControlGroup: (group: number) => void;
-  selectAllOfUnitTypeVisible: (unitType: string) => void;
+  setAudioPreferences: (prefs: Partial<GameStateData['audio']>) => void;
 }
 
 export const useGameStore = create<GameState & GameStateActions>((set, get) => ({
@@ -86,7 +88,10 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
     
     // Spawn an enemy target nearby for testing combat
-    get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
+    // get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
+
+    // Spawn enemy barracks to trigger AI Tactics
+    // get().spawnBuilding('barracks', { x: 500, y: 500 }, 'enemy');
 
     // Spawn some ore
     for(let i=0; i<10; i++) {
@@ -114,10 +119,21 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
       });
 
       // Set new selection
+      let selectedPlayerEntity = false;
       ids.forEach((id) => {
-        if (newUnits[id]) newUnits[id] = { ...newUnits[id], selected: true };
-        if (newBuildings[id]) newBuildings[id] = { ...newBuildings[id], selected: true };
+        if (newUnits[id]) {
+            newUnits[id] = { ...newUnits[id], selected: true };
+            if (newUnits[id].owner === 'player') selectedPlayerEntity = true;
+        }
+        if (newBuildings[id]) {
+            newBuildings[id] = { ...newBuildings[id], selected: true };
+            if (newBuildings[id].owner === 'player') selectedPlayerEntity = true;
+        }
       });
+
+      if (selectedPlayerEntity) {
+          audioSystem.play('acknowledge', state.audio.volume, state.audio.muted);
+      }
 
       return { selection: ids, units: newUnits, buildings: newBuildings };
     });
@@ -125,10 +141,12 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
 
   commandUnits: (command) => {
     set((state) => {
+      let issuedCommand = false;
       const newUnits = { ...state.units };
       command.unitIds.forEach((id) => {
         const unit = newUnits[id];
         if (unit && unit.owner === 'player') {
+          issuedCommand = true;
           newUnits[id] = {
             ...unit,
             targetPosition: command.targetPosition,
@@ -138,6 +156,15 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
           };
         }
       });
+
+      if (issuedCommand) {
+          if (command.type === 'move' || command.type === 'harvest') {
+              audioSystem.play('moving', state.audio.volume, state.audio.muted);
+          } else if (command.type === 'attack') {
+              audioSystem.play('attack', state.audio.volume, state.audio.muted);
+          }
+      }
+
       return { units: newUnits };
     });
   },
@@ -305,11 +332,13 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
   },
 
   completePlacement: (position) => {
-    const { placementMode, buildQueue } = get();
+    const { placementMode, buildQueue, audio } = get();
     if (!placementMode.active || !placementMode.buildingType || !placementMode.queueItemId) return;
 
     const buildingType = placementMode.buildingType as keyof typeof BUILDING_DATA;
     get().spawnBuilding(buildingType, position, 'player');
+
+    audioSystem.play('building_complete', audio.volume, audio.muted);
 
     set({
       placementMode: {
@@ -321,58 +350,9 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     });
   },
 
-  assignControlGroup: (group, ids) => {
+  setAudioPreferences: (prefs) => {
     set((state) => ({
-      controlGroups: {
-        ...state.controlGroups,
-        [group]: ids,
-      }
+      audio: { ...state.audio, ...prefs },
     }));
-  },
-
-  selectControlGroup: (group) => {
-    const state = get();
-    const ids = state.controlGroups[group];
-    if (ids) {
-      // Check if any of these units actually still exist and belong to the player
-      const validIds = ids.filter(id => state.units[id] && state.units[id].owner === 'player');
-      get().selectEntities(validIds);
-    }
-  },
-
-  selectAllOfUnitTypeVisible: (unitType) => {
-    const state = get();
-    const { units, viewport } = state;
-
-    // Bounds check for viewport
-    // Note: this assumes unit positions are their centers and size isn't huge.
-    // viewport contains x, y, width, height, and scale.
-    // But x and y in viewport are the top-left of the viewed world space if it's not scaled.
-    // Let's rely on Game.tsx/Viewport.tsx logic. Usually viewport.x/y is the top-left corner of the camera in world coordinates.
-    // We will just do a simple bounds check:
-    // real screen width = viewport.width, world width = viewport.width / viewport.scale.
-    // We'll estimate world boundaries visible:
-
-    const viewLeft = viewport.x;
-    const viewRight = viewport.x + (viewport.width / viewport.scale);
-    const viewTop = viewport.y;
-    const viewBottom = viewport.y + (viewport.height / viewport.scale);
-
-    const idsToSelect: string[] = [];
-
-    Object.values(units).forEach(unit => {
-      if (unit.owner === 'player' && unit.unitType === unitType) {
-        if (
-          unit.position.x >= viewLeft && unit.position.x <= viewRight &&
-          unit.position.y >= viewTop && unit.position.y <= viewBottom
-        ) {
-          idsToSelect.push(unit.id);
-        }
-      }
-    });
-
-    if (idsToSelect.length > 0) {
-      get().selectEntities(idsToSelect);
-    }
   }
 }));

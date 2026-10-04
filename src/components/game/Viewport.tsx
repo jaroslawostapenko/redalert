@@ -21,8 +21,6 @@ const Viewport: React.FC = () => {
   const placementMode = useGameStore((state) => state.placementMode);
   const completePlacement = useGameStore((state) => state.completePlacement);
   const cancelPlacementMode = useGameStore((state) => state.cancelPlacementMode);
-  const assignControlGroup = useGameStore((state) => state.assignControlGroup);
-  const selectControlGroup = useGameStore((state) => state.selectControlGroup);
   
   // Touch panning state
   const [isPanning, setIsPanning] = useState(false);
@@ -34,32 +32,8 @@ const Viewport: React.FC = () => {
       setViewport({ width: window.innerWidth, height: window.innerHeight });
     };
     window.addEventListener('resize', handleResize);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for control groups 1-9
-      if (e.key >= '1' && e.key <= '9') {
-        const groupNum = parseInt(e.key, 10);
-        if (e.ctrlKey) {
-          e.preventDefault(); // Prevent browser tab switching
-          // Assign control group
-          // Get current selection from store directly to avoid stale closures
-          const currentSelection = useGameStore.getState().selection;
-          if (currentSelection.length > 0) {
-            assignControlGroup(groupNum, currentSelection);
-          }
-        } else {
-          // Select control group
-          selectControlGroup(groupNum);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [setViewport, assignControlGroup, selectControlGroup]);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setViewport]);
 
   const screenToWorld = (screenX: number, screenY: number): Vector2 => {
     return {
@@ -214,27 +188,6 @@ const Viewport: React.FC = () => {
     }
   }
 
-  const selectAllOfUnitTypeVisible = useGameStore((state) => state.selectAllOfUnitTypeVisible);
-
-  const handleDoubleClick = (e: MouseEvent) => {
-    if (isPanning) return;
-
-    const worldPos = screenToWorld(e.clientX, e.clientY);
-
-    // Check if we clicked a unit
-    for (const id in units) {
-      const u = units[id];
-      const dx = u.position.x - worldPos.x;
-      const dy = u.position.y - worldPos.y;
-      if (Math.sqrt(dx * dx + dy * dy) < 20) {
-        if (u.owner === 'player') {
-          selectAllOfUnitTypeVisible(u.unitType);
-        }
-        break;
-      }
-    }
-  };
-
   const handleClick = (e: MouseEvent) => {
     // If we just finished a pan, ignore the click
     if (isPanning) return;
@@ -255,7 +208,6 @@ const Viewport: React.FC = () => {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onMouseDown={handleClick}
-      onDoubleClick={handleDoubleClick}
       onContextMenu={(e) => { e.preventDefault(); handleClick(e); }}
     >
       <Renderer />
