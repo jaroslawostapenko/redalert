@@ -1,6 +1,6 @@
 # Architecture Documentation
 
-This document provides a technical overview of the `my-rts` project. The game leverages React for rendering and UI, Zustand for state management, and a custom game loop to handle game logic simulation.
+This document provides a technical overview of the `my-rts` project, a Command & Conquer: Red Alert 1 remake. The game leverages React for rendering and UI, Zustand for state management, and a custom game loop to handle game logic simulation.
 
 ## High-Level Architecture
 
