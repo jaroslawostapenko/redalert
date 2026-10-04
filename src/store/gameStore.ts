@@ -44,9 +44,35 @@ const initialState: GameStateData = {
   selection: [],
   gameTime: 0,
   buildQueue: [],
+  // We will initialize fogOfWar as a 1D array with dimensions:
+  // Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) x Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)
+  // But wait, the state needs to be initialized outside components so it's a bit tricky to dynamically get it from GAME_CONFIG,
+  // though GAME_CONFIG is available here.
+  fogOfWar: new Array(Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) * Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)).fill(0),
+  placementMode: {
+    active: false,
+    buildingType: null,
+    queueItemId: null,
+  },
+  projectiles: [],
 };
 
-export const useGameStore = create<GameState>((set, get) => ({
+interface GameStateActions {
+  initGame: () => void;
+  setViewport: (viewport: Partial<GameStateData['viewport']>) => void;
+  selectEntities: (ids: string[]) => void;
+  commandUnits: (command: Command) => void;
+  queueBuild: (itemType: 'unit' | 'building', typeName: string) => void;
+  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId) => string;
+  spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId) => string;
+  spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number) => string;
+  updateTick: (deltaTime: number) => void;
+  setPlacementMode: (buildingType: string, queueItemId: string) => void;
+  cancelPlacementMode: () => void;
+  completePlacement: (position: Vector2) => void;
+}
+
+export const useGameStore = create<GameState & GameStateActions>((set, get) => ({
   ...initialState,
 
   initGame: () => {
@@ -55,10 +81,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Spawn a construction yard for the player
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
     
-    // Spawn an initial construction yard for the enemy
-    const enemyStartX = GAME_CONFIG.mapSize.width - 200;
-    const enemyStartY = GAME_CONFIG.mapSize.height - 200;
-    get().spawnBuilding('constructionYard', { x: enemyStartX, y: enemyStartY }, 'enemy');
+    // Spawn an enemy target nearby for testing combat
+    get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
 
     // Spawn some ore
     for(let i=0; i<10; i++) {
@@ -143,6 +167,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           cost,
           buildTime,
           owner: 'player',
+          status: 'queued',
         };
         return {
           players: { ...state.players, player: newPlayer },
@@ -253,5 +278,42 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateTick: (_deltaTime) => {
      // This will be overridden or called by the systems
+  },
+
+  setPlacementMode: (buildingType, queueItemId) => {
+    set({
+      placementMode: {
+        active: true,
+        buildingType,
+        queueItemId,
+      }
+    });
+  },
+
+  cancelPlacementMode: () => {
+    set({
+      placementMode: {
+        active: false,
+        buildingType: null,
+        queueItemId: null,
+      }
+    });
+  },
+
+  completePlacement: (position) => {
+    const { placementMode, buildQueue } = get();
+    if (!placementMode.active || !placementMode.buildingType || !placementMode.queueItemId) return;
+
+    const buildingType = placementMode.buildingType as keyof typeof BUILDING_DATA;
+    get().spawnBuilding(buildingType, position, 'player');
+
+    set({
+      placementMode: {
+        active: false,
+        buildingType: null,
+        queueItemId: null,
+      },
+      buildQueue: buildQueue.filter((item) => item.id !== placementMode.queueItemId),
+    });
   }
 }));

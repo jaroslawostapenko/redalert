@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { updateMovement } from '../systems/movement';
 import { updateCombatAndHarvest } from '../systems/combat';
-import { updateHarvesting } from '../systems/harvesting';
-import { updateAiDirector } from '../systems/aiDirector';
+import { updateFogOfWar } from '../systems/fogOfWar';
+import { updateProjectiles } from '../systems/projectiles';
 import { GAME_CONFIG } from '../constants/gameData';
 
 export const useGameLoop = () => {
@@ -29,46 +29,35 @@ export const useGameLoop = () => {
                 state.buildings, 
                 state.resources, 
                 state.players, 
+                state.projectiles,
                 dt, 
                 state.gameTime
             );
 
-            const harvestResult = updateHarvesting(
+            const projResult = updateProjectiles(
+                combatResult.projectiles,
                 combatResult.units,
                 combatResult.buildings,
-                combatResult.resources,
-                combatResult.players,
                 dt
             );
 
+            const nextFogOfWar = updateFogOfWar({
+                ...state,
+                units: projResult.units,
+                buildings: projResult.buildings,
+            });
+
             return {
-                units: harvestResult.units,
-                buildings: combatResult.buildings,
-                resources: harvestResult.resources,
-                players: harvestResult.players,
-                gameTime: state.gameTime + dt
+                units: projResult.units,
+                buildings: projResult.buildings,
+                resources: combatResult.resources,
+                players: combatResult.players,
+                projectiles: projResult.projectiles,
+                gameTime: state.gameTime + dt,
+                fogOfWar: nextFogOfWar
             };
         });
         
-        // Call the AI director *outside* the synchronous tick update.
-        // This ensures that when the AI calls spawnBuilding/spawnUnit, those independent
-        // state mutations don't get overwritten by the return value of the tick update.
-        const stateAfterTick = useGameStore.getState();
-        const aiResult = updateAiDirector(
-            stateAfterTick.units,
-            stateAfterTick.buildings,
-            stateAfterTick.resources,
-            stateAfterTick.players,
-            stateAfterTick.gameTime,
-            stateAfterTick.spawnBuilding,
-            stateAfterTick.spawnUnit
-        );
-
-        // If the AI updated player resources (e.g. spent money), flush it
-        if (aiResult.players !== stateAfterTick.players) {
-             useGameStore.setState({ players: aiResult.players });
-        }
-
         previousTimeRef.current = time;
     }
 

@@ -9,6 +9,8 @@ const Renderer: React.FC = () => {
   const units = useGameStore((state) => state.units);
   const buildings = useGameStore((state) => state.buildings);
   const resources = useGameStore((state) => state.resources);
+  const fogOfWar = useGameStore((state) => state.fogOfWar);
+  const projectiles = useGameStore((state) => state.projectiles);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -116,6 +118,53 @@ const Renderer: React.FC = () => {
           }
       });
 
+      // Draw Projectiles
+      projectiles.forEach(proj => {
+          ctx.fillStyle = '#FFA500';
+          ctx.beginPath();
+          ctx.arc(proj.position.x, proj.position.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+      });
+
+      // Draw Fog of War
+      const gridWidth = Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize);
+      const gridHeight = Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize);
+
+      // We need to calculate world bounds for the visible viewport
+      const worldLeft = viewport.x - (canvas.width / 2) / viewport.scale;
+      const worldTop = viewport.y - (canvas.height / 2) / viewport.scale;
+      const worldRight = viewport.x + (canvas.width / 2) / viewport.scale;
+      const worldBottom = viewport.y + (canvas.height / 2) / viewport.scale;
+
+      const fowStartX = Math.floor(worldLeft / GAME_CONFIG.tileSize);
+      const fowStartY = Math.floor(worldTop / GAME_CONFIG.tileSize);
+      const fowEndX = Math.ceil(worldRight / GAME_CONFIG.tileSize);
+      const fowEndY = Math.ceil(worldBottom / GAME_CONFIG.tileSize);
+
+      for (let y = fowStartY; y <= fowEndY; y++) {
+        for (let x = fowStartX; x <= fowEndX; x++) {
+          if (x < 0 || y < 0 || x >= gridWidth || y >= gridHeight) {
+            // Off map, draw black to hide out of bounds
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x * GAME_CONFIG.tileSize, y * GAME_CONFIG.tileSize, GAME_CONFIG.tileSize, GAME_CONFIG.tileSize);
+            continue;
+          }
+
+          const index = y * gridWidth + x;
+          const status = fogOfWar[index];
+
+          if (status === 0 || status === undefined) {
+            // Unexplored
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x * GAME_CONFIG.tileSize, y * GAME_CONFIG.tileSize, GAME_CONFIG.tileSize, GAME_CONFIG.tileSize);
+          } else if (status === 1) {
+            // Explored but not visible
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(x * GAME_CONFIG.tileSize, y * GAME_CONFIG.tileSize, GAME_CONFIG.tileSize, GAME_CONFIG.tileSize);
+          }
+        }
+      }
+
       ctx.restore();
       animationFrameId = requestAnimationFrame(render);
     };
@@ -125,7 +174,7 @@ const Renderer: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [viewport, units, buildings, resources]);
+  }, [viewport, units, buildings, resources, fogOfWar, projectiles]);
 
   return <canvas ref={canvasRef} style={{ display: 'block' }} />;
 };
