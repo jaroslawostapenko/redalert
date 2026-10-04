@@ -2,6 +2,7 @@ import React from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { CircleDollarSign, Zap } from 'lucide-react';
 import { UNIT_DATA, BUILDING_DATA } from '../../constants/gameData';
+import Minimap from './Minimap';
 
 const UIOverlay: React.FC = () => {
   const player = useGameStore((state) => state.players['player']);
@@ -53,7 +54,8 @@ const UIOverlay: React.FC = () => {
         padding: '10px',
         background: 'rgba(0,0,0,0.7)',
         color: 'white',
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        alignItems: 'flex-start'
       }}>
         <div style={{ display: 'flex', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -65,6 +67,9 @@ const UIOverlay: React.FC = () => {
              <span>{player.maxPower - player.power}</span>
           </div>
         </div>
+
+        {/* Right side Minimap */}
+        <Minimap />
       </div>
 
       {/* Bottom Bar - Build Menu (Scrollable for mobile) */}
