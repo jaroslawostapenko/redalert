@@ -1,13 +1,13 @@
 import type { Unit, Building, ResourceNode, PlayerState } from '../models/types';
-import { distance, normalize, multiply, add } from '../utils/math';
-import {} from '../constants/gameData';
+// import { distance, normalize, multiply, add } from '../utils/math';
+// import {} from '../constants/gameData';
 
 export const updateCombatAndHarvest = (
   units: Record<string, Unit>,
   buildings: Record<string, Building>,
   resources: Record<string, ResourceNode>,
   players: Record<string, PlayerState>,
-  deltaTime: number,
+  _deltaTime: number,
   _gameTime: number
 ) => {
   const newUnits = { ...units };
@@ -19,47 +19,9 @@ export const updateCombatAndHarvest = (
   let resourcesChanged = false;
   let playersChanged = false;
 
-  for (const id in newUnits) {
-    const unit = newUnits[id];
-
-    // HARVESTING LOGIC
-    if (unit.state === 'harvesting' && unit.targetId && unit.unitType === 'harvester') {
-      const targetResource = newResources[unit.targetId];
-      
-      if (!targetResource || targetResource.amount <= 0) {
-         // Resource depleted, find nearest refinery or return to idle
-         newUnits[id] = { ...unit, state: 'idle', targetId: undefined };
-         unitsChanged = true;
-         continue;
-      }
-      
-      const dist = distance(unit.position, targetResource.position);
-      
-      if (dist > 50) {
-          // Move to resource
-          const dir = normalize({ x: targetResource.position.x - unit.position.x, y: targetResource.position.y - unit.position.y});
-          const velocity = multiply(dir, unit.speed * (deltaTime / 1000));
-          newUnits[id] = { ...unit, position: add(unit.position, velocity)};
-          unitsChanged = true;
-      } else {
-         // Gather
-         if ((unit.carryingResource || 0) < (unit.maxCarry || 500)) {
-             // Fake harvest rate (e.g., 10 per tick)
-             const harvestAmount = Math.min(10, targetResource.amount);
-             newResources[unit.targetId] = { ...targetResource, amount: targetResource.amount - harvestAmount, health: targetResource.amount - harvestAmount };
-             newUnits[id] = { ...unit, carryingResource: (unit.carryingResource || 0) + harvestAmount };
-             unitsChanged = true;
-             resourcesChanged = true;
-         } else {
-             // Return to refinery (simplified, just add money for now)
-             newPlayers[unit.owner] = { ...newPlayers[unit.owner], money: newPlayers[unit.owner].money + (unit.carryingResource || 0) };
-             newUnits[id] = { ...unit, carryingResource: 0 }; // Instantly deposit for MVP
-             playersChanged = true;
-             unitsChanged = true;
-         }
-      }
-    }
-  }
+  // for (const id in newUnits) {
+  //   // Add real combat logic here later using newUnits[id]
+  // }
 
   return {
     units: unitsChanged ? newUnits : units,

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { updateMovement } from '../systems/movement';
 import { updateCombatAndHarvest } from '../systems/combat';
+import { updateHarvesting } from '../systems/harvesting';
 import { GAME_CONFIG } from '../constants/gameData';
 
 export const useGameLoop = () => {
@@ -31,11 +32,19 @@ export const useGameLoop = () => {
                 state.gameTime
             );
 
+            const harvestResult = updateHarvesting(
+                combatResult.units,
+                combatResult.buildings,
+                combatResult.resources,
+                combatResult.players,
+                dt
+            );
+
             return {
-                units: combatResult.units,
+                units: harvestResult.units,
                 buildings: combatResult.buildings,
-                resources: combatResult.resources,
-                players: combatResult.players,
+                resources: harvestResult.resources,
+                players: harvestResult.players,
                 gameTime: state.gameTime + dt
             };
         });
