@@ -3,6 +3,8 @@ import { useGameStore } from '../../store/gameStore';
 import { CircleDollarSign, Zap } from 'lucide-react';
 import { UNIT_DATA, BUILDING_DATA } from '../../constants/gameData';
 import Minimap from './Minimap';
+import { DialogueBox } from './DialogueBox';
+import { ObjectiveTracker } from './ObjectiveTracker';
 
 const UIOverlay: React.FC = () => {
   const player = useGameStore((state) => state.players['player']);
@@ -72,6 +74,9 @@ const UIOverlay: React.FC = () => {
         {/* Right side Minimap */}
         <Minimap />
       </div>
+
+      <DialogueBox />
+      <ObjectiveTracker />
 
       {/* Bottom Bar - Build Menu (Scrollable for mobile) */}
       <div style={{

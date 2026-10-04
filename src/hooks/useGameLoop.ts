@@ -6,6 +6,8 @@ import { updateFogOfWar } from '../systems/fogOfWar';
 import { updateProjectiles } from '../systems/projectiles';
 import { updateAITactics } from '../systems/aiTactics';
 import { GAME_CONFIG } from '../constants/gameData';
+import { updateCampaignEngine } from '../campaign/campaignEngine';
+import { mission1 } from '../campaign/missions/mission1'; // Temporarily hardcoded for the loop
 
 export const useGameLoop = () => {
   const requestRef = useRef<number>(0);
@@ -66,6 +68,9 @@ export const useGameLoop = () => {
             };
         });
         
+        // Run campaign engine outside of the setState callback so actions (like spawnUnit) don't get overwritten
+        updateCampaignEngine(mission1, useGameStore.getState());
+
         previousTimeRef.current = time;
     }
 
