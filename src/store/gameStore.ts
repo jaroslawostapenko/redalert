@@ -54,6 +54,7 @@ const initialState: GameStateData = {
     buildingType: null,
     queueItemId: null,
   },
+  projectiles: [],
 };
 
 interface GameStateActions {
@@ -80,6 +81,9 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     // Spawn a construction yard for the player
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
     
+    // Spawn an enemy target nearby for testing combat
+    get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
+
     // Spawn some ore
     for(let i=0; i<10; i++) {
         for(let j=0; j<10; j++) {

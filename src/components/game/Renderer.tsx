@@ -10,6 +10,7 @@ const Renderer: React.FC = () => {
   const buildings = useGameStore((state) => state.buildings);
   const resources = useGameStore((state) => state.resources);
   const fogOfWar = useGameStore((state) => state.fogOfWar);
+  const projectiles = useGameStore((state) => state.projectiles);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -117,6 +118,14 @@ const Renderer: React.FC = () => {
           }
       });
 
+      // Draw Projectiles
+      projectiles.forEach(proj => {
+          ctx.fillStyle = '#FFA500';
+          ctx.beginPath();
+          ctx.arc(proj.position.x, proj.position.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+      });
+
       // Draw Fog of War
       const gridWidth = Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize);
       const gridHeight = Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize);
@@ -165,7 +174,7 @@ const Renderer: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [viewport, units, buildings, resources, fogOfWar]);
+  }, [viewport, units, buildings, resources, fogOfWar, projectiles]);
 
   return <canvas ref={canvasRef} style={{ display: 'block' }} />;
 };
