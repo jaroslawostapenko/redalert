@@ -7,8 +7,10 @@ const UIOverlay: React.FC = () => {
   const player = useGameStore((state) => state.players['player']);
   
   const spawnUnit = useGameStore((state) => state.spawnUnit); // For MVP instant spawn
-  const spawnBuilding = useGameStore((state) => state.spawnBuilding);
   const buildings = useGameStore((state) => state.buildings);
+  const queueBuild = useGameStore((state) => state.queueBuild);
+  const buildQueue = useGameStore((state) => state.buildQueue);
+  const setPlacementMode = useGameStore((state) => state.setPlacementMode);
 
   // Check if we have prerequisites
   const hasBarracks = Object.values(buildings).some(b => b.owner === 'player' && b.buildingType === 'barracks');
@@ -27,14 +29,13 @@ const UIOverlay: React.FC = () => {
   };
 
   const handleBuildStructure = (type: keyof typeof BUILDING_DATA) => {
-    if (player.money >= BUILDING_DATA[type].cost) {
-        const cost = BUILDING_DATA[type].cost;
-         useGameStore.setState(state => ({
-             players: { ...state.players, player: { ...state.players['player'], money: state.players['player'].money - cost } }
-         }));
-         // Place near ConYard for now
-         spawnBuilding(type, { x: 150 + Math.random()*100, y: 150 + Math.random()*100 }, 'player');
-    }
+    // For now we just add it to the queue and instantly mark it as ready to place since we don't have a time tick for queue yet.
+    queueBuild('building', type);
+    // Note: the queueBuild logic handles cost
+  }
+
+  const handlePlaceStructure = (id: string, type: string) => {
+    setPlacementMode(type, id);
   }
 
   return (
@@ -112,6 +113,17 @@ const UIOverlay: React.FC = () => {
                 Harvester ($1400)
             </button>
         )}
+
+        {/* Render queued buildings ready to place */}
+        {buildQueue.filter(q => q.itemType === 'building').map(q => (
+            <button
+                key={q.id}
+                onClick={() => handlePlaceStructure(q.id, q.name)}
+                style={{...btnStyle, border: '2px solid #0f0'}}
+            >
+                Place {BUILDING_DATA[q.name as keyof typeof BUILDING_DATA].name}
+            </button>
+        ))}
       </div>
     </div>
   );

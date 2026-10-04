@@ -3,7 +3,10 @@ import type { TouchEvent as ReactTouchEvent, MouseEvent } from "react";
 import { useGameStore } from '../../store/gameStore';
 import type { Vector2 } from '../../models/types';
 import {  } from '../../utils/math';
+import { worldToGrid } from '../../utils/geometry';
+import { GAME_CONFIG, BUILDING_DATA } from '../../constants/gameData';
 import Renderer from './Renderer';
+import { PlacementGhost } from '../ui/PlacementGhost';
 
 const Viewport: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -13,12 +16,16 @@ const Viewport: React.FC = () => {
   const selectEntities = useGameStore((state) => state.selectEntities);
   const commandUnits = useGameStore((state) => state.commandUnits);
   const units = useGameStore((state) => state.units);
+  const buildings = useGameStore((state) => state.buildings);
   const selection = useGameStore((state) => state.selection);
+  const placementMode = useGameStore((state) => state.placementMode);
+  const completePlacement = useGameStore((state) => state.completePlacement);
+  const cancelPlacementMode = useGameStore((state) => state.cancelPlacementMode);
   
   // Touch panning state
   const [isPanning, setIsPanning] = useState(false);
   const [lastTouchPos, setLastTouchPos] = useState<Vector2 | null>(null);
-  const [touchStartTime, setTouchStartTime] = useState<number>(0);
+  const touchStartTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const handleResize = () => {
@@ -39,7 +46,7 @@ const Viewport: React.FC = () => {
     if (e.touches.length === 1) {
       setLastTouchPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
       setIsPanning(true);
-      setTouchStartTime(Date.now());
+      touchStartTimeRef.current = e.timeStamp;
     }
   };
 
@@ -57,7 +64,7 @@ const Viewport: React.FC = () => {
   const handleTouchEnd = (e: ReactTouchEvent) => {
     if (e.changedTouches.length === 1 && lastTouchPos) {
         // If it was a quick tap, treat it as a click
-        if (Date.now() - touchStartTime < 300) {
+        if (e.timeStamp - touchStartTimeRef.current < 300) {
             handleInteraction(e.changedTouches[0].clientX, e.changedTouches[0].clientY, true);
         }
     }
@@ -70,6 +77,57 @@ const Viewport: React.FC = () => {
 
   const handleInteraction = (clientX: number, clientY: number, isTap: boolean, isRightClick: boolean = false) => {
     const worldPos = screenToWorld(clientX, clientY);
+
+    if (placementMode.active) {
+      if (isRightClick) {
+        cancelPlacementMode();
+        return;
+      }
+
+      if (placementMode.buildingType) {
+        // Validate placement location
+        const gridPos = worldToGrid(worldPos);
+        const snappedWorldX = gridPos.x * GAME_CONFIG.tileSize;
+        const snappedWorldY = gridPos.y * GAME_CONFIG.tileSize;
+        const buildingData = BUILDING_DATA[placementMode.buildingType as keyof typeof BUILDING_DATA];
+
+        const pixelWidth = buildingData.size.width * GAME_CONFIG.tileSize;
+        const pixelHeight = buildingData.size.height * GAME_CONFIG.tileSize;
+
+        let isValid = true;
+        if (
+            snappedWorldX < 0 ||
+            snappedWorldY < 0 ||
+            snappedWorldX + pixelWidth > GAME_CONFIG.mapSize.width ||
+            snappedWorldY + pixelHeight > GAME_CONFIG.mapSize.height
+        ) {
+            isValid = false;
+        }
+
+        if (isValid) {
+            for (const bldgId in buildings) {
+                const b = buildings[bldgId];
+                const bw = b.size.width * GAME_CONFIG.tileSize;
+                const bh = b.size.height * GAME_CONFIG.tileSize;
+
+                if (
+                    snappedWorldX < b.position.x + bw &&
+                    snappedWorldX + pixelWidth > b.position.x &&
+                    snappedWorldY < b.position.y + bh &&
+                    snappedWorldY + pixelHeight > b.position.y
+                ) {
+                    isValid = false;
+                    break;
+                }
+            }
+        }
+
+        if (isValid) {
+          completePlacement({ x: snappedWorldX, y: snappedWorldY });
+        }
+      }
+      return;
+    }
 
     // Check if we clicked a unit
     let clickedId = null;
@@ -142,6 +200,7 @@ const Viewport: React.FC = () => {
       onContextMenu={(e) => { e.preventDefault(); handleClick(e); }}
     >
       <Renderer />
+      {placementMode.active && <PlacementGhost />}
     </div>
   );
 };
