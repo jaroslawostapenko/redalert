@@ -4,6 +4,7 @@ import { updateMovement } from '../systems/movement';
 import { updateCombatAndHarvest } from '../systems/combat';
 import { updateFogOfWar } from '../systems/fogOfWar';
 import { updateProjectiles } from '../systems/projectiles';
+import { updateAITactics } from '../systems/aiTactics';
 import { GAME_CONFIG } from '../constants/gameData';
 
 export const useGameLoop = () => {
@@ -41,17 +42,24 @@ export const useGameLoop = () => {
                 dt
             );
 
+            const aiResult = updateAITactics(
+                projResult.units,
+                projResult.buildings,
+                combatResult.players,
+                state.gameTime + dt
+            );
+
             const nextFogOfWar = updateFogOfWar({
                 ...state,
-                units: projResult.units,
+                units: aiResult.units,
                 buildings: projResult.buildings,
             });
 
             return {
-                units: projResult.units,
+                units: aiResult.units,
                 buildings: projResult.buildings,
                 resources: combatResult.resources,
-                players: combatResult.players,
+                players: aiResult.players,
                 projectiles: projResult.projectiles,
                 gameTime: state.gameTime + dt,
                 fogOfWar: nextFogOfWar

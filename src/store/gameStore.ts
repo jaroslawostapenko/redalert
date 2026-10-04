@@ -82,7 +82,10 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
     
     // Spawn an enemy target nearby for testing combat
-    get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
+    // get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
+
+    // Spawn enemy barracks to trigger AI Tactics
+    // get().spawnBuilding('barracks', { x: 500, y: 500 }, 'enemy');
 
     // Spawn some ore
     for(let i=0; i<10; i++) {
