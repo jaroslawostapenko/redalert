@@ -6,6 +6,7 @@ import { updateFogOfWar } from '../systems/fogOfWar';
 import { updateProjectiles } from '../systems/projectiles';
 import { updateAITactics } from '../systems/aiTactics';
 import { GAME_CONFIG } from '../constants/gameData';
+import { replayRecorder } from '../utils/replayRecorder';
 
 export const useGameLoop = () => {
   const requestRef = useRef<number>(0);
@@ -22,6 +23,30 @@ export const useGameLoop = () => {
     const dt = Math.min(deltaTime, 100);
 
     if (dt >= GAME_CONFIG.tickRate) {
+        // Handle Replay Playback
+        if (replayRecorder.getIsPlaying()) {
+            const commands = replayRecorder.getCommandsForCurrentFrame();
+            for (const cmd of commands) {
+                switch (cmd.action) {
+                    case 'commandUnits':
+                        useGameStore.getState().commandUnits(cmd.payload);
+                        break;
+                    case 'queueBuild':
+                        useGameStore.getState().queueBuild(cmd.payload.itemType, cmd.payload.typeName);
+                        break;
+                    case 'spawnUnit':
+                        useGameStore.getState().spawnUnit(cmd.payload.type, cmd.payload.position, cmd.payload.owner, cmd.payload.specificId);
+                        break;
+                    case 'spawnBuilding':
+                        useGameStore.getState().spawnBuilding(cmd.payload.type, cmd.payload.position, cmd.payload.owner, cmd.payload.specificId);
+                        break;
+                    case 'spawnResource':
+                        useGameStore.getState().spawnResource(cmd.payload.type, cmd.payload.position, cmd.payload.amount, cmd.payload.specificId);
+                        break;
+                }
+            }
+        }
+
         useGameStore.setState((state) => {
             let nextUnits = updateMovement(state.units, state.buildings, dt);
             
@@ -42,12 +67,15 @@ export const useGameLoop = () => {
                 dt
             );
 
-            const aiResult = updateAITactics(
-                projResult.units,
-                projResult.buildings,
-                combatResult.players,
-                state.gameTime + dt
-            );
+            let aiResult = { units: projResult.units, players: combatResult.players };
+            if (!replayRecorder.getIsPlaying()) {
+                aiResult = updateAITactics(
+                    projResult.units,
+                    projResult.buildings,
+                    combatResult.players,
+                    state.gameTime + dt
+                );
+            }
 
             const nextFogOfWar = updateFogOfWar({
                 ...state,
@@ -66,6 +94,7 @@ export const useGameLoop = () => {
             };
         });
         
+        replayRecorder.tick();
         previousTimeRef.current = time;
     }
 

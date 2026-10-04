@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore';
 import { CircleDollarSign, Zap } from 'lucide-react';
 import { UNIT_DATA, BUILDING_DATA } from '../../constants/gameData';
 import Minimap from './Minimap';
+import LoadMenu from './LoadMenu';
 
 const UIOverlay: React.FC = () => {
   const player = useGameStore((state) => state.players['player']);
@@ -48,6 +49,9 @@ const UIOverlay: React.FC = () => {
       flexDirection: 'column',
       justifyContent: 'space-between'
     }}>
+      <div style={{ pointerEvents: 'auto' }}>
+        <LoadMenu />
+      </div>
       {/* Top Bar - Resources */}
       <div style={{
         display: 'flex',
