@@ -5,7 +5,9 @@ import { updateCombatAndHarvest } from '../systems/combat';
 import { updateFogOfWar } from '../systems/fogOfWar';
 import { updateProjectiles } from '../systems/projectiles';
 import { updateAITactics } from '../systems/aiTactics';
-import { GAME_CONFIG } from '../constants/gameData';
+import { GAME_CONFIG, UNIT_DATA } from '../constants/gameData';
+import { updateBuildQueue } from '../systems/buildQueue';
+import { v4 as uuidv4 } from 'uuid';
 
 export const useGameLoop = () => {
   const requestRef = useRef<number>(0);
@@ -49,20 +51,57 @@ export const useGameLoop = () => {
                 state.gameTime + dt
             );
 
+            const { nextBuildQueue, completedUnits } = updateBuildQueue(
+                state.buildQueue,
+                combatResult.players,
+                projResult.buildings,
+                dt
+            );
+
+            let finalUnits = { ...aiResult.units };
+            if (completedUnits.length > 0) {
+                completedUnits.forEach(u => {
+                    const id = uuidv4();
+                    const data = UNIT_DATA[u.name as keyof typeof UNIT_DATA];
+
+                    finalUnits[id] = {
+                        id,
+                        type: 'unit',
+                        unitType: u.name as any,
+                        owner: u.owner as any,
+                        position: u.position,
+                        health: data.health,
+                        maxHealth: data.health,
+                        selected: false,
+                        name: data.name,
+                        speed: data.speed,
+                        damage: (data as any).damage || 0,
+                        range: (data as any).range || 0,
+                        attackCooldown: (data as any).attackCooldown || 0,
+                        lastAttackTime: 0,
+                        state: 'idle',
+                        rotation: 0,
+                        carryingResource: u.name === 'harvester' ? 0 : undefined,
+                        maxCarry: u.name === 'harvester' ? (data as any).maxCarry : undefined,
+                    };
+                });
+            }
+
             const nextFogOfWar = updateFogOfWar({
                 ...state,
-                units: aiResult.units,
+                units: finalUnits,
                 buildings: projResult.buildings,
             });
 
             return {
-                units: aiResult.units,
+                units: finalUnits,
                 buildings: projResult.buildings,
                 resources: combatResult.resources,
                 players: aiResult.players,
                 projectiles: projResult.projectiles,
                 gameTime: state.gameTime + dt,
-                fogOfWar: nextFogOfWar
+                fogOfWar: nextFogOfWar,
+                buildQueue: nextBuildQueue,
             };
         });
         
