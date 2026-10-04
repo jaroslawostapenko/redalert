@@ -20,7 +20,7 @@ export const useGameLoop = () => {
 
     if (dt >= GAME_CONFIG.tickRate) {
         useGameStore.setState((state) => {
-            let nextUnits = updateMovement(state.units, dt);
+            let nextUnits = updateMovement(state.units, state.buildings, dt);
             
             const combatResult = updateCombatAndHarvest(
                 nextUnits, 

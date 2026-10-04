@@ -100,6 +100,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             ...unit,
             targetPosition: command.targetPosition,
             targetId: command.targetId,
+            path: undefined, // Clear existing path on new command
             state: command.type === 'move' ? 'moving' : command.type === 'harvest' ? 'harvesting' : 'attacking',
           };
         }
