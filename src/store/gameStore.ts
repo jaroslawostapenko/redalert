@@ -55,6 +55,7 @@ const initialState: GameStateData = {
     queueItemId: null,
   },
   projectiles: [],
+  controlGroups: {},
 };
 
 interface GameStateActions {
@@ -70,6 +71,9 @@ interface GameStateActions {
   setPlacementMode: (buildingType: string, queueItemId: string) => void;
   cancelPlacementMode: () => void;
   completePlacement: (position: Vector2) => void;
+  assignControlGroup: (group: number, ids: string[]) => void;
+  selectControlGroup: (group: number) => void;
+  selectAllOfUnitTypeVisible: (unitType: string) => void;
 }
 
 export const useGameStore = create<GameState & GameStateActions>((set, get) => ({
@@ -315,5 +319,60 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
       },
       buildQueue: buildQueue.filter((item) => item.id !== placementMode.queueItemId),
     });
+  },
+
+  assignControlGroup: (group, ids) => {
+    set((state) => ({
+      controlGroups: {
+        ...state.controlGroups,
+        [group]: ids,
+      }
+    }));
+  },
+
+  selectControlGroup: (group) => {
+    const state = get();
+    const ids = state.controlGroups[group];
+    if (ids) {
+      // Check if any of these units actually still exist and belong to the player
+      const validIds = ids.filter(id => state.units[id] && state.units[id].owner === 'player');
+      get().selectEntities(validIds);
+    }
+  },
+
+  selectAllOfUnitTypeVisible: (unitType) => {
+    const state = get();
+    const { units, viewport } = state;
+
+    // Bounds check for viewport
+    // Note: this assumes unit positions are their centers and size isn't huge.
+    // viewport contains x, y, width, height, and scale.
+    // But x and y in viewport are the top-left of the viewed world space if it's not scaled.
+    // Let's rely on Game.tsx/Viewport.tsx logic. Usually viewport.x/y is the top-left corner of the camera in world coordinates.
+    // We will just do a simple bounds check:
+    // real screen width = viewport.width, world width = viewport.width / viewport.scale.
+    // We'll estimate world boundaries visible:
+
+    const viewLeft = viewport.x;
+    const viewRight = viewport.x + (viewport.width / viewport.scale);
+    const viewTop = viewport.y;
+    const viewBottom = viewport.y + (viewport.height / viewport.scale);
+
+    const idsToSelect: string[] = [];
+
+    Object.values(units).forEach(unit => {
+      if (unit.owner === 'player' && unit.unitType === unitType) {
+        if (
+          unit.position.x >= viewLeft && unit.position.x <= viewRight &&
+          unit.position.y >= viewTop && unit.position.y <= viewBottom
+        ) {
+          idsToSelect.push(unit.id);
+        }
+      }
+    });
+
+    if (idsToSelect.length > 0) {
+      get().selectEntities(idsToSelect);
+    }
   }
 }));

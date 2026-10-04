@@ -102,6 +102,7 @@ export interface GameStateData {
     queueItemId: string | null;
   };
   projectiles: Projectile[];
+  controlGroups: Record<number, string[]>;
 }
 
 export interface Projectile {
