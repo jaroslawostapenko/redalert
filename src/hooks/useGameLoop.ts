@@ -6,6 +6,7 @@ import { updateFogOfWar } from '../systems/fogOfWar';
 import { updateProjectiles } from '../systems/projectiles';
 import { updateAITactics } from '../systems/aiTactics';
 import { GAME_CONFIG } from '../constants/gameData';
+import { commandBuffer } from '../network/commandBuffer';
 
 export const useGameLoop = () => {
   const requestRef = useRef<number>(0);
@@ -22,6 +23,23 @@ export const useGameLoop = () => {
     const dt = Math.min(deltaTime, 100);
 
     if (dt >= GAME_CONFIG.tickRate) {
+        const state = useGameStore.getState();
+
+        // Lockstep logic: only run if the game has started and we have the next frame of inputs
+        if (state.isMultiplayerGameStarted && !commandBuffer.hasFrame(state.currentNetworkFrame)) {
+            // Wait for network, skip this tick
+            requestRef.current = requestAnimationFrame(update);
+            return;
+        }
+
+        // Apply commands for this frame (if multiplayer is active)
+        if (state.isMultiplayerGameStarted) {
+            // Retrieve commands to clear them from buffer, even if not processed yet in this MVP
+            commandBuffer.getCommandsForFrame(state.currentNetworkFrame);
+            // TODO: In a full implementation, map these commands to actual store actions.
+            // For example, if commands contains a move action, call state.commandUnits(...)
+        }
+
         useGameStore.setState((state) => {
             let nextUnits = updateMovement(state.units, state.buildings, dt);
             
@@ -62,7 +80,8 @@ export const useGameLoop = () => {
                 players: aiResult.players,
                 projectiles: projResult.projectiles,
                 gameTime: state.gameTime + dt,
-                fogOfWar: nextFogOfWar
+                fogOfWar: nextFogOfWar,
+                currentNetworkFrame: state.isMultiplayerGameStarted ? state.currentNetworkFrame + 1 : state.currentNetworkFrame
             };
         });
         

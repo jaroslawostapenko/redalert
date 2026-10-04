@@ -76,6 +76,12 @@ export interface PlayerState {
 }
 
 export interface GameStateData {
+  // Network / App state
+  isConnected: boolean;
+  playersInLobby: number;
+  isMultiplayerGameStarted: boolean;
+  currentNetworkFrame: number;
+
   units: Record<string, Unit>;
   buildings: Record<string, Building>;
   resources: Record<string, ResourceNode>;
