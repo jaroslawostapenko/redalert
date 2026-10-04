@@ -30,13 +30,13 @@ export const updateMovement = (units: Record<string, Unit>, buildings: Record<st
       
       // Reached current waypoint
       if (distToWaypoint < 5) {
-        unit.path.shift(); // Remove current waypoint
+        const newPath = unit.path.slice(1); // Remove current waypoint immutably
 
-        if (unit.path.length === 0) {
+        if (newPath.length === 0) {
             // Reached final destination
             updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined };
         } else {
-             updatedUnits[id] = { ...unit }; // Trigger state update
+             updatedUnits[id] = { ...unit, path: newPath }; // Trigger state update
         }
         changed = true;
         continue;

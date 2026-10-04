@@ -68,16 +68,16 @@ export const updateCombatAndHarvest = (
     // HARVESTING LOGIC
     if (unit.state === 'harvesting' && unit.targetId && unit.unitType === 'harvester') {
       const targetResource = newResources[unit.targetId];
-      
+
       if (!targetResource || targetResource.amount <= 0) {
          // Resource depleted, find nearest refinery or return to idle
          newUnits[id] = { ...unit, state: 'idle', targetId: undefined };
          unitsChanged = true;
          continue;
       }
-      
+
       const dist = distance(unit.position, targetResource.position);
-      
+
       if (dist > 50) {
           // Move to resource
           const dir = normalize({ x: targetResource.position.x - unit.position.x, y: targetResource.position.y - unit.position.y});
