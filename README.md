@@ -1,32 +1,74 @@
-# React + TypeScript + Vite
+# my-rts
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A Real-Time Strategy (RTS) game prototype built with React, TypeScript, Vite, and Zustand.
 
-Currently, two official plugins are available:
+This project is a minimal but feature-rich foundation for browser-based RTS games. It uses modern web technologies to handle the rendering, state management, and core systems usually required in an RTS, running a game loop directly in the browser.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **React-based Rendering**: Uses standard React components to render the game world and UI efficiently.
+- **State Management**: Powered by Zustand for lightweight, fast, and scalable global game state.
+- **Game Systems**: Includes basic RTS systems separated from state logic:
+  - Movement System (handling unit pathing and movement towards targets).
+  - Combat System (handling targeting, cooldowns, and damage).
+- **Entities**: Supports units, buildings, and resources.
+- **Core Mechanics**:
+  - Entity selection.
+  - Issuing commands (move, attack, harvest).
+  - Building/Unit queuing and economy (money, power management).
+- **Configurable Data**: Centralized configurations in `src/constants/gameData.ts` for unit stats, building costs, map sizes, and game rules.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting Started
 
-## Expanding the Oxlint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+You will need [Node.js](https://nodejs.org/) installed on your machine.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### Installation
+
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the Development Server
+
+To start the local development server:
+
+```bash
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The game should now be accessible in your browser (usually at `http://localhost:5173`).
+
+### Building for Production
+
+To build the project for production:
+
+```bash
+npm run build
+```
+This generates the optimized static files in the `dist` folder.
+
+To preview the production build:
+
+```bash
+npm run preview
+```
+
+## Linting
+
+This project uses [Oxlint](https://oxc.rs/docs/guide/usage/linter) for fast linting.
+
+```bash
+npm run lint
+```
+
+## Documentation
+
+For technical details regarding the architecture, game loop, and how to add new features, please see the [Architecture Documentation](docs/ARCHITECTURE.md).
+
+## License
+
+This project is open-source. See the LICENSE file for details.
