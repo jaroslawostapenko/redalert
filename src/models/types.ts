@@ -96,7 +96,14 @@ export interface GameStateData {
   // 1: Explored but not visible (semi-transparent)
   // 2: Currently visible (transparent)
   fogOfWar: number[];
+  placementMode: {
+    active: boolean;
+    buildingType: string | null;
+    queueItemId: string | null;
+  };
 }
+
+export type BuildQueueStatus = 'queued' | 'building' | 'ready_to_place';
 
 export interface BuildQueueItem {
   id: string;
@@ -107,6 +114,7 @@ export interface BuildQueueItem {
   buildTime: number; // total time required
   owner: PlayerId;
   factoryId?: string; // ID of the building producing it
+  status: BuildQueueStatus;
 }
 
 export interface GameConfig {

@@ -49,9 +49,29 @@ const initialState: GameStateData = {
   // But wait, the state needs to be initialized outside components so it's a bit tricky to dynamically get it from GAME_CONFIG,
   // though GAME_CONFIG is available here.
   fogOfWar: new Array(Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) * Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)).fill(0),
+  placementMode: {
+    active: false,
+    buildingType: null,
+    queueItemId: null,
+  },
 };
 
-export const useGameStore = create<GameState>((set, get) => ({
+interface GameStateActions {
+  initGame: () => void;
+  setViewport: (viewport: Partial<GameStateData['viewport']>) => void;
+  selectEntities: (ids: string[]) => void;
+  commandUnits: (command: Command) => void;
+  queueBuild: (itemType: 'unit' | 'building', typeName: string) => void;
+  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId) => string;
+  spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId) => string;
+  spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number) => string;
+  updateTick: (deltaTime: number) => void;
+  setPlacementMode: (buildingType: string, queueItemId: string) => void;
+  cancelPlacementMode: () => void;
+  completePlacement: (position: Vector2) => void;
+}
+
+export const useGameStore = create<GameState & GameStateActions>((set, get) => ({
   ...initialState,
 
   initGame: () => {
@@ -143,6 +163,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           cost,
           buildTime,
           owner: 'player',
+          status: 'queued',
         };
         return {
           players: { ...state.players, player: newPlayer },
@@ -253,5 +274,42 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateTick: (_deltaTime) => {
      // This will be overridden or called by the systems
+  },
+
+  setPlacementMode: (buildingType, queueItemId) => {
+    set({
+      placementMode: {
+        active: true,
+        buildingType,
+        queueItemId,
+      }
+    });
+  },
+
+  cancelPlacementMode: () => {
+    set({
+      placementMode: {
+        active: false,
+        buildingType: null,
+        queueItemId: null,
+      }
+    });
+  },
+
+  completePlacement: (position) => {
+    const { placementMode, buildQueue } = get();
+    if (!placementMode.active || !placementMode.buildingType || !placementMode.queueItemId) return;
+
+    const buildingType = placementMode.buildingType as keyof typeof BUILDING_DATA;
+    get().spawnBuilding(buildingType, position, 'player');
+
+    set({
+      placementMode: {
+        active: false,
+        buildingType: null,
+        queueItemId: null,
+      },
+      buildQueue: buildQueue.filter((item) => item.id !== placementMode.queueItemId),
+    });
   }
 }));
