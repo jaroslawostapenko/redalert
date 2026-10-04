@@ -1,3 +1,4 @@
+import { NAVAL_UNIT_DATA } from './navalData';
 import type { Size } from '../models/types';
 
 export const GAME_CONFIG = {
@@ -8,6 +9,7 @@ export const GAME_CONFIG = {
 };
 
 export const UNIT_DATA = {
+  ...NAVAL_UNIT_DATA,
   rifleman: {
     name: 'Rifleman',
     cost: 100,
@@ -19,6 +21,7 @@ export const UNIT_DATA = {
     attackCooldown: 1000, // ms
     radius: 10,
     vision: 300,
+    movementType: 'land' as const,
   },
   tank: {
     name: 'Medium Tank',
@@ -31,6 +34,7 @@ export const UNIT_DATA = {
     attackCooldown: 1500,
     radius: 16,
     vision: 400,
+    movementType: 'land' as const,
   },
   harvester: {
     name: 'Ore Truck',
@@ -45,6 +49,7 @@ export const UNIT_DATA = {
     maxCarry: 500, // credits worth of ore
     harvestRate: 50, // per tick or second
     vision: 300,
+    movementType: 'land' as const,
   },
   engineer: {
     name: 'Engineer',
@@ -57,6 +62,7 @@ export const UNIT_DATA = {
     attackCooldown: 0,
     radius: 10,
     vision: 200,
+    movementType: 'land' as const,
   },
 };
 
@@ -111,6 +117,16 @@ export const BUILDING_DATA = {
     powerConsumed: 40,
     vision: 400,
     provides: 'harvester', // Usually comes with a free harvester
+  },
+  bridge: {
+    name: 'Bridge',
+    cost: 500,
+    buildTime: 5000,
+    health: 500,
+    size: { width: 4, height: 2 },
+    powerGenerated: 0,
+    powerConsumed: 0,
+    vision: 100,
   },
   pillbox: {
     name: 'Pillbox',

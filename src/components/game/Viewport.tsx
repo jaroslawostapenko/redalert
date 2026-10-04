@@ -6,6 +6,7 @@ import {  } from '../../utils/math';
 import { worldToGrid } from '../../utils/geometry';
 import { GAME_CONFIG, BUILDING_DATA } from '../../constants/gameData';
 import Renderer from './Renderer';
+import TerrainRenderer from './TerrainRenderer';
 import { PlacementGhost } from '../ui/PlacementGhost';
 
 const Viewport: React.FC = () => {
@@ -75,7 +76,7 @@ const Viewport: React.FC = () => {
     }
   };
 
-  const handleInteraction = (clientX: number, clientY: number, isTap: boolean, isRightClick: boolean = false) => {
+  const handleInteraction = (clientX: number, clientY: number, isTap: boolean, isRightClick: boolean = false, isShiftDown: boolean = false) => {
     const worldPos = screenToWorld(clientX, clientY);
 
     if (placementMode.active) {
@@ -167,6 +168,7 @@ const Viewport: React.FC = () => {
             }
         } else if (isRightClick) {
             if (selection.length > 0) {
+
                 if (clickedId) {
                     const target = units[clickedId];
                     if (target.owner !== 'player') {
@@ -175,13 +177,31 @@ const Viewport: React.FC = () => {
                             targetId: clickedId,
                             unitIds: selection
                         });
+                    } else if (target.unitType === 'transport' && selection.length > 0) {
+                         commandUnits({
+                             type: 'board',
+                             targetId: clickedId,
+                             unitIds: selection.filter(id => id !== clickedId)
+                         });
+                    } else if (selection.length === 1 && selection[0] === clickedId && target.unitType === 'transport' && (target.passengers || []).length > 0) {
+                         // unboard command (right clicking itself if it has passengers)
+                         // But we need a target position for unboard.
+                         // Let's just use empty ground right click for unboarding? No, transport is selected, right click empty ground -> moves.
+                         // Maybe double right click?
                     }
                 } else {
-                    commandUnits({
-                        type: 'move',
-                        targetPosition: worldPos,
-                        unitIds: selection
-                    });
+                    if (isShiftDown && selection.length === 1 && units[selection[0]]?.unitType === 'transport') {
+                         commandUnits({
+                             type: 'unboard',
+                             unitIds: selection
+                         });
+                    } else {
+                        commandUnits({
+                            type: 'move',
+                            targetPosition: worldPos,
+                            unitIds: selection
+                        });
+                    }
                 }
             }
         }
@@ -210,6 +230,7 @@ const Viewport: React.FC = () => {
       onMouseDown={handleClick}
       onContextMenu={(e) => { e.preventDefault(); handleClick(e); }}
     >
+      <TerrainRenderer />
       <Renderer />
       {placementMode.active && <PlacementGhost />}
     </div>

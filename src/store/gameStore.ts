@@ -20,7 +20,7 @@ interface GameState extends GameStateData {
   selectEntities: (ids: string[]) => void;
   commandUnits: (command: Command) => void;
   queueBuild: (itemType: 'unit' | 'building', typeName: string) => void;
-  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId) => string;
+  spawnUnit: (type: keyof typeof UNIT_DATA, position: Vector2, owner: PlayerId) => string;
   spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId) => string;
   spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number) => string;
   updateTick: (deltaTime: number) => void;
@@ -50,6 +50,7 @@ const initialState: GameStateData = {
   // But wait, the state needs to be initialized outside components so it's a bit tricky to dynamically get it from GAME_CONFIG,
   // though GAME_CONFIG is available here.
   fogOfWar: new Array(Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) * Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)).fill(0),
+  terrain: new Array(Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize) * Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)).fill(0),
   placementMode: {
     active: false,
     buildingType: null,
@@ -84,6 +85,27 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
   initGame: () => {
     // Spawn some initial stuff
     
+
+    // Generate river terrain
+    const gridW = Math.ceil(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize);
+    const gridH = Math.ceil(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize);
+    const terrain = new Array(gridW * gridH).fill(0); // 0 = land
+
+    // River cutting horizontally across the middle, with a bit of a wave
+    for (let x = 0; x < gridW; x++) {
+        const yCenter = Math.floor(gridH / 2 + Math.sin(x / 10) * 10);
+        for (let y = yCenter - 1; y <= yCenter; y++) {
+            if (y >= 0 && y < gridH) {
+                // 1 = water
+                terrain[y * gridW + x] = 1;
+            }
+        }
+    }
+
+    // Some coast tiles for testing? Let's just do water for now
+
+    set({ terrain });
+
     // Spawn a construction yard for the player
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
     
@@ -92,6 +114,18 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
 
     // Spawn enemy barracks to trigger AI Tactics
     // get().spawnBuilding('barracks', { x: 500, y: 500 }, 'enemy');
+
+
+    // Spawn bridge over the river
+    const bridgeY = Math.floor(gridH / 2 + Math.sin(20 / 10) * 10);
+    // x=20, y=bridgeY, converting grid to world
+    const bridgePos = { x: 20 * GAME_CONFIG.tileSize, y: (bridgeY - 1) * GAME_CONFIG.tileSize };
+    get().spawnBuilding('bridge', bridgePos, 'neutral');
+
+    // Spawn some naval units for player and enemy
+    get().spawnUnit('gunboat', { x: 10 * GAME_CONFIG.tileSize, y: bridgeY * GAME_CONFIG.tileSize }, 'player');
+    get().spawnUnit('submarine', { x: 15 * GAME_CONFIG.tileSize, y: bridgeY * GAME_CONFIG.tileSize }, 'enemy');
+    get().spawnUnit('destroyer', { x: 5 * GAME_CONFIG.tileSize, y: bridgeY * GAME_CONFIG.tileSize }, 'player');
 
     // Spawn some ore
     for(let i=0; i<10; i++) {
@@ -152,7 +186,7 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
             targetPosition: command.targetPosition,
             targetId: command.targetId,
             path: undefined, // Clear existing path on new command
-            state: command.type === 'move' ? 'moving' : command.type === 'harvest' ? 'harvesting' : 'attacking',
+            state: command.type === 'move' ? 'moving' : command.type === 'harvest' ? 'harvesting' : command.type === 'board' ? 'boarding' : command.type === 'unboard' ? ('unboard' as any) : 'attacking',
           };
         }
       });
@@ -217,7 +251,8 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
       const newUnit: Unit = {
         id,
         type: 'unit',
-        unitType: type,
+        unitType: type as any,
+        movementType: (data as any).movementType,
         owner,
         position,
         health: data.health,
@@ -235,6 +270,8 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
         state: 'idle',
         rotation: 0,
         carryingResource: type === 'harvester' ? 0 : undefined,
+        isSubmerged: type === 'submarine' ? true : undefined,
+        passengers: type === 'transport' ? [] : undefined,
         // @ts-ignore
         maxCarry: type === 'harvester' ? data.maxCarry : undefined,
       };

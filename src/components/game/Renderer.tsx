@@ -57,24 +57,50 @@ const Renderer: React.FC = () => {
          ctx.fill();
       });
 
+
       // Draw Buildings
       Object.values(buildings).forEach(bldg => {
-          ctx.fillStyle = bldg.owner === 'player' ? '#0000AA' : '#AA0000';
           const bw = bldg.size.width * GAME_CONFIG.tileSize;
           const bh = bldg.size.height * GAME_CONFIG.tileSize;
-          ctx.fillRect(bldg.position.x, bldg.position.y, bw, bh);
-          ctx.strokeStyle = bldg.selected ? '#00FF00' : '#fff';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(bldg.position.x, bldg.position.y, bw, bh);
+
+          if (bldg.buildingType === 'bridge') {
+              ctx.fillStyle = bldg.state === 'destroyed' ? '#4a3b2c' : '#8b5a2b'; // Brown colors
+              ctx.fillRect(bldg.position.x, bldg.position.y, bw, bh);
+
+              // Draw planks
+              if (bldg.state !== 'destroyed') {
+                  ctx.strokeStyle = '#5c3a21';
+                  ctx.lineWidth = 2;
+                  for(let i=0; i<bw; i+=10) {
+                      ctx.beginPath(); ctx.moveTo(bldg.position.x + i, bldg.position.y); ctx.lineTo(bldg.position.x + i, bldg.position.y + bh); ctx.stroke();
+                  }
+              }
+          } else {
+              ctx.fillStyle = bldg.owner === 'player' ? '#0000AA' : '#AA0000';
+              ctx.fillRect(bldg.position.x, bldg.position.y, bw, bh);
+              ctx.strokeStyle = bldg.selected ? '#00FF00' : '#fff';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(bldg.position.x, bldg.position.y, bw, bh);
+          }
       });
+
+
 
       // Draw Units
       Object.values(units).forEach(unit => {
+          // Hide in_transport units
+          if (unit.state === 'in_transport') return;
+          // Hide submerged enemy submarines
+          if (unit.unitType === 'submarine' && unit.isSubmerged && unit.owner !== 'player') {
+              return;
+          }
+
           ctx.save();
           ctx.translate(unit.position.x, unit.position.y);
           ctx.rotate(unit.rotation);
 
           ctx.fillStyle = unit.owner === 'player' ? '#4444FF' : '#FF4444';
+
           if (unit.unitType === 'tank') {
               ctx.fillRect(-10, -10, 20, 20);
               // Barrel
@@ -82,7 +108,24 @@ const Renderer: React.FC = () => {
               ctx.fillRect(0, -2, 15, 4);
           } else if (unit.unitType === 'harvester') {
               ctx.fillRect(-12, -10, 24, 20);
+          } else if (unit.unitType === 'gunboat') {
+              ctx.beginPath();
+              ctx.moveTo(15, 0);
+              ctx.lineTo(-15, -8);
+              ctx.lineTo(-15, 8);
+              ctx.fill();
+          } else if (unit.unitType === 'destroyer') {
+              ctx.fillRect(-20, -10, 40, 20);
+          } else if (unit.unitType === 'submarine') {
+              ctx.beginPath();
+              ctx.ellipse(0, 0, 15, 5, 0, 0, Math.PI*2);
+              if (unit.isSubmerged) {
+                 ctx.globalAlpha = 0.5; // Transparent if submerged (for player viewing their own sub)
+              }
+              ctx.fill();
+              ctx.globalAlpha = 1.0;
           } else {
+
               // Rifleman
               ctx.beginPath();
               ctx.arc(0, 0, 6, 0, Math.PI * 2);
@@ -176,7 +219,7 @@ const Renderer: React.FC = () => {
     };
   }, [viewport, units, buildings, resources, fogOfWar, projectiles]);
 
-  return <canvas ref={canvasRef} style={{ display: 'block' }} />;
+  return <canvas ref={canvasRef} style={{ display: 'block', position: 'absolute', top: 0, left: 0, zIndex: 1 }} />;
 };
 
 export default Renderer;

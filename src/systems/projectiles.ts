@@ -43,11 +43,17 @@ export const updateProjectiles = (
         unitsChanged = true;
       } else if (targetBuilding) {
         const newHealth = Math.max(0, targetBuilding.health - proj.damage);
+
         if (newHealth === 0) {
-            delete newBuildings[proj.targetId];
+            if (targetBuilding.buildingType === 'bridge') {
+                 newBuildings[proj.targetId] = { ...targetBuilding, health: newHealth, state: 'destroyed' };
+            } else {
+                 delete newBuildings[proj.targetId];
+            }
         } else {
             newBuildings[proj.targetId] = { ...targetBuilding, health: newHealth };
         }
+
         buildingsChanged = true;
       }
 

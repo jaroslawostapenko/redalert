@@ -20,7 +20,7 @@ function getGridPos(v: Vector2): { x: number, y: number } {
     return { x: Math.floor(v.x / TILE_SIZE), y: Math.floor(v.y / TILE_SIZE) };
 }
 
-export function findPath(startPos: Vector2, targetPos: Vector2, buildings: Record<string, Building>): Vector2[] {
+export function findPath(startPos: Vector2, targetPos: Vector2, buildings: Record<string, Building>, terrain: number[], movementType: 'land' | 'water' | 'amphibious' = 'land'): Vector2[] {
     const startGrid = getGridPos(startPos);
     const targetGrid = getGridPos(targetPos);
 
@@ -34,19 +34,45 @@ export function findPath(startPos: Vector2, targetPos: Vector2, buildings: Recor
     const mapRows = Math.floor(GAME_CONFIG.mapSize.height / TILE_SIZE);
 
     // We'll just check collision on the fly instead of building a huge 2D array every time
+
     const isImpassable = (gx: number, gy: number): boolean => {
         if (gx < 0 || gx >= mapCols || gy < 0 || gy >= mapRows) return true;
+
+        const terrainType = terrain[gy * mapCols + gx] || 0;
+
+        let hasBridge = false;
+        let isBuildingImpassable = false;
 
         for (const b of Object.values(buildings)) {
             const bx = Math.floor(b.position.x / TILE_SIZE);
             const by = Math.floor(b.position.y / TILE_SIZE);
 
             if (gx >= bx && gx < bx + b.size.width && gy >= by && gy < by + b.size.height) {
-                return true;
+                if (b.buildingType === 'bridge' && b.state !== 'destroyed') {
+                    hasBridge = true;
+                } else if (b.state !== 'destroyed') {
+                    isBuildingImpassable = true;
+                }
             }
         }
+
+        if (movementType === 'land') {
+            if (isBuildingImpassable) return true;
+            if (terrainType === 1 && !hasBridge) return true;
+            return false;
+        } else if (movementType === 'water') {
+            if (terrainType === 0) return true; // Can't go on land
+            // Can pass under bridges, but not through other buildings
+            if (isBuildingImpassable) return true;
+            return false;
+        } else if (movementType === 'amphibious') {
+            if (isBuildingImpassable) return true;
+            return false;
+        }
+
         return false;
     };
+
 
     // A* initialization
     let openList: Node[] = [];

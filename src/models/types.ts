@@ -23,11 +23,12 @@ export interface GameObject {
   name: string;
 }
 
-export type UnitState = 'idle' | 'moving' | 'attacking' | 'harvesting' | 'dead';
+export type UnitState = 'idle' | 'moving' | 'attacking' | 'harvesting' | 'dead' | 'boarding' | 'in_transport';
 
 export interface Unit extends GameObject {
   type: 'unit';
-  unitType: 'rifleman' | 'tank' | 'harvester' | 'engineer';
+  unitType: 'rifleman' | 'tank' | 'harvester' | 'engineer' | 'gunboat' | 'submarine' | 'destroyer' | 'transport';
+  movementType: 'land' | 'water' | 'amphibious';
   speed: number;
   damage: number;
   range: number;
@@ -40,13 +41,15 @@ export interface Unit extends GameObject {
   rotation: number; // in radians
   carryingResource?: number; // for harvester
   maxCarry?: number;
+  isSubmerged?: boolean;
+  passengers?: string[];
 }
 
 export type BuildingState = 'constructing' | 'active' | 'destroyed';
 
 export interface Building extends GameObject {
   type: 'building';
-  buildingType: 'constructionYard' | 'powerPlant' | 'barracks' | 'warFactory' | 'oreRefinery' | 'pillbox';
+  buildingType: 'constructionYard' | 'powerPlant' | 'barracks' | 'warFactory' | 'oreRefinery' | 'pillbox' | 'bridge';
   size: Size; // in grid cells
   powerGenerated: number;
   powerConsumed: number;
@@ -96,6 +99,7 @@ export interface GameStateData {
   // 1: Explored but not visible (semi-transparent)
   // 2: Currently visible (transparent)
   fogOfWar: number[];
+  terrain: number[]; // 0: land, 1: water, 2: coast
   placementMode: {
     active: boolean;
     buildingType: string | null;
@@ -137,7 +141,7 @@ export interface GameConfig {
   tickRate: number; // ms per tick
 }
 
-export type CommandType = 'move' | 'attack' | 'harvest' | 'repair';
+export type CommandType = 'move' | 'attack' | 'harvest' | 'repair' | 'board' | 'unboard';
 
 export interface Command {
   type: CommandType;

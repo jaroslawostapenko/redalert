@@ -2,7 +2,7 @@ import type { Unit, Building } from '../models/types';
 import { distance, normalize, multiply, add, angleBetween } from '../utils/math';
 import { findPath } from '../utils/pathfinding';
 
-export const updateMovement = (units: Record<string, Unit>, buildings: Record<string, Building>, deltaTime: number): Record<string, Unit> => {
+export const updateMovement = (units: Record<string, Unit>, buildings: Record<string, Building>, terrain: number[], deltaTime: number): Record<string, Unit> => {
   const updatedUnits = { ...units };
   let changed = false;
 
@@ -11,10 +11,11 @@ export const updateMovement = (units: Record<string, Unit>, buildings: Record<st
   for (const id in updatedUnits) {
     const unit = updatedUnits[id];
     
+    if (unit.state === 'in_transport') continue;
     if (unit.state === 'moving' && unit.targetPosition) {
       // Calculate path if missing
       if (!unit.path || unit.path.length === 0) {
-          unit.path = findPath(unit.position, unit.targetPosition, buildings);
+          unit.path = findPath(unit.position, unit.targetPosition, buildings, terrain, (unit as any).movementType || 'land');
       }
 
       const nextWaypoint = unit.path[0];
