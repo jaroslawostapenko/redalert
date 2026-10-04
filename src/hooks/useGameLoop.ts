@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { updateMovement } from '../systems/movement';
 import { updateCombatAndHarvest } from '../systems/combat';
 import { updateHarvesting } from '../systems/harvesting';
+import { updateAiDirector } from '../systems/aiDirector';
 import { GAME_CONFIG } from '../constants/gameData';
 
 export const useGameLoop = () => {
@@ -49,6 +50,25 @@ export const useGameLoop = () => {
             };
         });
         
+        // Call the AI director *outside* the synchronous tick update.
+        // This ensures that when the AI calls spawnBuilding/spawnUnit, those independent
+        // state mutations don't get overwritten by the return value of the tick update.
+        const stateAfterTick = useGameStore.getState();
+        const aiResult = updateAiDirector(
+            stateAfterTick.units,
+            stateAfterTick.buildings,
+            stateAfterTick.resources,
+            stateAfterTick.players,
+            stateAfterTick.gameTime,
+            stateAfterTick.spawnBuilding,
+            stateAfterTick.spawnUnit
+        );
+
+        // If the AI updated player resources (e.g. spent money), flush it
+        if (aiResult.players !== stateAfterTick.players) {
+             useGameStore.setState({ players: aiResult.players });
+        }
+
         previousTimeRef.current = time;
     }
 

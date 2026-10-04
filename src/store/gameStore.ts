@@ -55,6 +55,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Spawn a construction yard for the player
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
     
+    // Spawn an initial construction yard for the enemy
+    const enemyStartX = GAME_CONFIG.mapSize.width - 200;
+    const enemyStartY = GAME_CONFIG.mapSize.height - 200;
+    get().spawnBuilding('constructionYard', { x: enemyStartX, y: enemyStartY }, 'enemy');
+
     // Spawn some ore
     for(let i=0; i<10; i++) {
         for(let j=0; j<10; j++) {
