@@ -1,8 +1,9 @@
-import type { Unit, Building } from '../models/types';
-import { distance, normalize, multiply, add, angleBetween } from '../utils/math';
-import { findPath } from '../utils/pathfinding';
+import type { Unit, Building, Vector2 } from '../models/types';
+import { distance, normalize, multiply, add } from '../utils/math';
+import { applyBoidsSeparation } from '../utils/formation';
+import { GAME_CONFIG } from '../constants/gameData';
 
-export const updateMovement = (units: Record<string, Unit>, buildings: Record<string, Building>, deltaTime: number): Record<string, Unit> => {
+export const updateMovement = (units: Record<string, Unit>, _buildings: Record<string, Building>, deltaTime: number): Record<string, Unit> => {
   const updatedUnits = { ...units };
   let changed = false;
 
@@ -12,47 +13,60 @@ export const updateMovement = (units: Record<string, Unit>, buildings: Record<st
     const unit = updatedUnits[id];
     
     if (unit.state === 'moving' && unit.targetPosition) {
-      // Calculate path if missing
-      if (!unit.path || unit.path.length === 0) {
-          unit.path = findPath(unit.position, unit.targetPosition, buildings);
-      }
+      const distToDestination = distance(unit.position, unit.targetPosition);
 
-      const nextWaypoint = unit.path[0];
-
-      if (!nextWaypoint) {
-          // Reached destination or no path
-          updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined };
+      // Stop condition
+      if (distToDestination < 15) {
+          updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined, flowField: undefined };
           changed = true;
           continue;
       }
 
-      const distToWaypoint = distance(unit.position, nextWaypoint);
+      let desiredVelocity: Vector2 = { x: 0, y: 0 };
       
-      // Reached current waypoint
-      if (distToWaypoint < 5) {
-        const newPath = unit.path.slice(1); // Remove current waypoint immutably
+      // If we have a flow field, use it
+      if (unit.flowField) {
+          // get current vector from vector field
+          const TILE_SIZE = GAME_CONFIG.tileSize;
+          const gx = Math.floor(unit.position.x / TILE_SIZE);
+          const gy = Math.floor(unit.position.y / TILE_SIZE);
 
-        if (newPath.length === 0) {
-            // Reached final destination
-            updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined };
-        } else {
-             updatedUnits[id] = { ...unit, path: newPath }; // Trigger state update
-        }
-        changed = true;
-        continue;
+          if (gx >= 0 && gx < unit.flowField.cols && gy >= 0 && gy < unit.flowField.rows) {
+              const index = gy * unit.flowField.cols + gx;
+              const flowDir = unit.flowField.vectorField[index];
+
+              if (flowDir && (flowDir.x !== 0 || flowDir.y !== 0)) {
+                  desiredVelocity = multiply(flowDir, unit.speed * dtSeconds);
+              }
+          }
       }
 
-      // Move towards next waypoint
-      const dir = normalize({
-        x: nextWaypoint.x - unit.position.x,
-        y: nextWaypoint.y - unit.position.y,
-      });
+      // Fallback if no flow field or we are off map or vector field is 0
+      if (desiredVelocity.x === 0 && desiredVelocity.y === 0) {
+          const dir = normalize({
+              x: unit.targetPosition.x - unit.position.x,
+              y: unit.targetPosition.y - unit.position.y,
+          });
+          desiredVelocity = multiply(dir, unit.speed * dtSeconds);
+      }
+
+      // Apply Boids Separation (Local Avoidance)
+      const separationForce = applyBoidsSeparation(unit, units, 30);
+      const separationWeight = 0.5 * unit.speed * dtSeconds; // arbitrary weight
+
+      let finalVelocity = add(desiredVelocity, multiply(separationForce, separationWeight));
+
+      // Limit speed so we don't go too fast because of separation
+      const currentSpeed = Math.sqrt(finalVelocity.x * finalVelocity.x + finalVelocity.y * finalVelocity.y);
+      const maxSpeed = unit.speed * dtSeconds;
+      if (currentSpeed > maxSpeed) {
+          finalVelocity = multiply(normalize(finalVelocity), maxSpeed);
+      }
       
-      const velocity = multiply(dir, unit.speed * dtSeconds);
-      const newPos = add(unit.position, velocity);
+      const newPos = add(unit.position, finalVelocity);
       
-      // Update rotation
-      const targetRotation = angleBetween(unit.position, nextWaypoint);
+      // We also update rotation based on final velocity
+      const targetRotation = Math.atan2(finalVelocity.y, finalVelocity.x);
       
       updatedUnits[id] = { ...unit, position: newPos, rotation: targetRotation };
       changed = true;
