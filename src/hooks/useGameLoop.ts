@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { updateMovement } from '../systems/movement';
 import { updateCombatAndHarvest } from '../systems/combat';
+import { updateFogOfWar } from '../systems/fogOfWar';
 import { GAME_CONFIG } from '../constants/gameData';
 
 export const useGameLoop = () => {
@@ -31,12 +32,19 @@ export const useGameLoop = () => {
                 state.gameTime
             );
 
+            const nextFogOfWar = updateFogOfWar({
+                ...state,
+                units: combatResult.units,
+                buildings: combatResult.buildings,
+            });
+
             return {
                 units: combatResult.units,
                 buildings: combatResult.buildings,
                 resources: combatResult.resources,
                 players: combatResult.players,
-                gameTime: state.gameTime + dt
+                gameTime: state.gameTime + dt,
+                fogOfWar: nextFogOfWar
             };
         });
         
