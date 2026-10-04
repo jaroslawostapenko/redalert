@@ -12,6 +12,8 @@ import type {
 } from '../models/types';
 import { GAME_CONFIG, UNIT_DATA, BUILDING_DATA } from '../constants/gameData';
 import { audioSystem } from '../systems/audioSystem';
+import { generateCostField, generateIntegrationField, generateVectorField } from '../systems/flowField';
+import { calculateFormationPositions } from '../utils/formation';
 
 interface GameState extends GameStateData {
   // Actions
@@ -147,18 +149,49 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     set((state) => {
       let issuedCommand = false;
       const newUnits = { ...state.units };
-      command.unitIds.forEach((id) => {
-        const unit = newUnits[id];
-        if (unit && unit.owner === 'player') {
-          issuedCommand = true;
-          newUnits[id] = {
-            ...unit,
-            targetPosition: command.targetPosition,
-            targetId: command.targetId,
-            path: undefined, // Clear existing path on new command
-            state: command.type === 'move' ? 'moving' : command.type === 'harvest' ? 'harvesting' : 'attacking',
-          };
+
+      const movingUnits = command.unitIds.map(id => newUnits[id]).filter(u => u && u.owner === 'player');
+
+      if (movingUnits.length === 0) return state;
+
+      issuedCommand = true;
+
+      let assignments: Vector2[] = [];
+      let flowField: import('../systems/flowField').FlowField | undefined;
+
+      if (command.targetPosition) {
+        if (command.type === 'move') {
+           assignments = calculateFormationPositions(command.targetPosition, movingUnits, 40);
+
+           // Generate flow fields for each unique assignment (in a real system, you might group these if they are close)
+           // For simplicity we will just assign the exact assignment to targetPosition for each unit,
+           // and calculate a flow field towards the *center* target position that all units can use to guide them generally,
+           // or we can generate a flow field per target. Let's do one shared flow field towards the main target for performance,
+           // and rely on local steering/separation to handle the final formation positions.
+           const costField = generateCostField(state.buildings);
+           const integrationField = generateIntegrationField(command.targetPosition, costField);
+           const vectorField = generateVectorField(integrationField, costField);
+           flowField = {
+             targetGridPos: { x: Math.floor(command.targetPosition.x / GAME_CONFIG.tileSize), y: Math.floor(command.targetPosition.y / GAME_CONFIG.tileSize) },
+             costField,
+             integrationField,
+             vectorField,
+             cols: Math.floor(GAME_CONFIG.mapSize.width / GAME_CONFIG.tileSize),
+             rows: Math.floor(GAME_CONFIG.mapSize.height / GAME_CONFIG.tileSize)
+           };
         }
+      }
+
+      movingUnits.forEach((unit, index) => {
+        const targetPos = command.type === 'move' && assignments[index] ? assignments[index] : command.targetPosition;
+        newUnits[unit.id] = {
+          ...unit,
+          targetPosition: targetPos,
+          targetId: command.targetId,
+          path: undefined, // Clear existing path on new command
+          flowField: flowField, // Use the shared flow field
+          state: command.type === 'move' ? 'moving' : command.type === 'harvest' ? 'harvesting' : 'attacking',
+        };
       });
 
       if (issuedCommand) {
