@@ -5,13 +5,13 @@ import type {
   Vector2,
   PlayerId,
   Command,
-  BuildQueueItem,
   Unit,
   Building,
   ResourceNode,
 } from '../models/types';
 import { GAME_CONFIG, UNIT_DATA, BUILDING_DATA } from '../constants/gameData';
 import { audioSystem } from '../systems/audioSystem';
+import { replayRecorder } from '../utils/replayRecorder';
 import { generateCostField, generateIntegrationField, generateVectorField } from '../systems/flowField';
 import { calculateFormationPositions } from '../utils/formation';
 
@@ -22,10 +22,9 @@ interface GameState extends GameStateData {
   selectEntities: (ids: string[]) => void;
   commandUnits: (command: Command) => void;
   queueBuild: (itemType: 'unit' | 'building', typeName: string) => void;
-  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId) => string;
-  spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId) => string;
-  spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number) => string;
-  updateTick: (deltaTime: number) => void;
+  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId, specificId?: string) => string;
+  spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId, specificId?: string) => string;
+  spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number, specificId?: string) => string;  updateTick: (deltaTime: number) => void;
 }
 
 const initialState: GameStateData = {
@@ -74,14 +73,14 @@ interface GameStateActions {
   selectEntities: (ids: string[]) => void;
   commandUnits: (command: Command) => void;
   queueBuild: (itemType: 'unit' | 'building', typeName: string) => void;
-  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId) => string;
-  spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId) => string;
-  spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number) => string;
-  updateTick: (deltaTime: number) => void;
+  spawnUnit: (type: 'rifleman' | 'tank' | 'harvester' | 'engineer', position: Vector2, owner: PlayerId, specificId?: string) => string;
+  spawnBuilding: (type: keyof typeof BUILDING_DATA, position: Vector2, owner: PlayerId, specificId?: string) => string;
+  spawnResource: (type: 'ore' | 'gems', position: Vector2, amount: number, specificId?: string) => string;  updateTick: (deltaTime: number) => void;
   setPlacementMode: (buildingType: string, queueItemId: string) => void;
   cancelPlacementMode: () => void;
   completePlacement: (position: Vector2) => void;
   setAudioPreferences: (prefs: Partial<GameStateData['audio']>) => void;
+  loadGameData: (data: any) => void;
 }
 
 export const useGameStore = create<GameState & GameStateActions>((set, get) => ({
@@ -92,7 +91,9 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     
     // Spawn a construction yard for the player
     get().spawnBuilding('constructionYard', { x: 50, y: 50 }, 'player');
-    
+
+    // Start recording initial state
+    replayRecorder.startRecording(get());
     // Spawn an enemy target nearby for testing combat
     // get().spawnUnit('tank', { x: 300, y: 300 }, 'enemy');
 
@@ -146,6 +147,10 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
   },
 
   commandUnits: (command) => {
+    if (!replayRecorder.getIsPlaying()) {
+        replayRecorder.recordAction('commandUnits', command);
+    }
+
     set((state) => {
       let issuedCommand = false;
       const newUnits = { ...state.units };
@@ -163,11 +168,6 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
         if (command.type === 'move') {
            assignments = calculateFormationPositions(command.targetPosition, movingUnits, 40);
 
-           // Generate flow fields for each unique assignment (in a real system, you might group these if they are close)
-           // For simplicity we will just assign the exact assignment to targetPosition for each unit,
-           // and calculate a flow field towards the *center* target position that all units can use to guide them generally,
-           // or we can generate a flow field per target. Let's do one shared flow field towards the main target for performance,
-           // and rely on local steering/separation to handle the final formation positions.
            const costField = generateCostField(state.buildings);
            const integrationField = generateIntegrationField(command.targetPosition, costField);
            const vectorField = generateVectorField(integrationField, costField);
@@ -206,48 +206,13 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     });
   },
 
-  queueBuild: (itemType, typeName) => {
+  queueBuild: (_itemType, _typeName) => {
     set((state) => {
-      const player = state.players['player'];
-      let cost = 0;
-      let buildTime = 0;
-      
-
-      if (itemType === 'unit') {
-        const data = UNIT_DATA[typeName as keyof typeof UNIT_DATA];
-        cost = data.cost;
-        buildTime = data.buildTime;
-        
-      } else {
-        const data = BUILDING_DATA[typeName as keyof typeof BUILDING_DATA];
-        cost = data.cost;
-        buildTime = data.buildTime;
-        
-      }
-
-      if (player.money >= cost) {
-        const newPlayer = { ...player, money: player.money - cost };
-        const queueItem: BuildQueueItem = {
-          id: uuidv4(),
-          itemType,
-          name: typeName,
-          progress: 0,
-          cost,
-          buildTime,
-          owner: 'player',
-          status: 'queued',
-        };
-        return {
-          players: { ...state.players, player: newPlayer },
-          buildQueue: [...state.buildQueue, queueItem],
-        };
-      }
-      return state;
+        return state;
     });
   },
-
-  spawnUnit: (type, position, owner) => {
-    const id = uuidv4();
+  spawnUnit: (type, position, owner, specificId) => {
+    const id = specificId || uuidv4();
     const data = UNIT_DATA[type];
     
     set((state) => {
@@ -281,9 +246,11 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     return id;
   },
 
-  spawnBuilding: (type, position, owner) => {
-     const id = uuidv4();
-     const data = BUILDING_DATA[type];
+  spawnBuilding: (type, position, owner, specificId) => {
+     const id = specificId || uuidv4();
+     if (!replayRecorder.getIsPlaying() && !specificId) {
+         replayRecorder.recordAction('spawnBuilding', { type, position, owner, specificId: id });
+     }     const data = BUILDING_DATA[type];
      set((state) => {
          const newBuilding: Building = {
              id,
@@ -324,9 +291,11 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
      return id;
   },
 
-  spawnResource: (type, position, amount) => {
-      const id = uuidv4();
-      set((state) => {
+  spawnResource: (type, position, amount, specificId) => {
+      const id = specificId || uuidv4();
+      if (!replayRecorder.getIsPlaying() && !specificId) {
+          replayRecorder.recordAction('spawnResource', { type, position, amount, specificId: id });
+      }      set((state) => {
           const newResource: ResourceNode = {
               id,
               type: 'resource',
@@ -391,5 +360,11 @@ export const useGameStore = create<GameState & GameStateActions>((set, get) => (
     set((state) => ({
       audio: { ...state.audio, ...prefs },
     }));
-  }
-}));
+  },
+
+  loadGameData: (data: any) => {
+    set((state) => ({
+      ...state,
+      ...data,
+    }));
+  }}));

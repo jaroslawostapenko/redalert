@@ -30,27 +30,12 @@ export const updateProjectiles = (
 
     // Check if it hit (arbitrary collision radius, e.g., 10 pixels)
     if (dist < 10) {
-      particleSystem.spawnEmitter('explosion', target.position);
       particleSystem.spawnEmitter('smoke', target.position);
-
       // Apply damage
       if (targetUnit) {
         const newHealth = Math.max(0, targetUnit.health - proj.damage);
         if (newHealth === 0) {
-            particleSystem.spawnEmitter('debris', target.position);
-            newUnits[proj.targetId] = { ...targetUnit, health: newHealth, state: 'dead' };
-            // Optional: clean up immediately or let another system remove dead units.
-            // For MVP, we delete it directly so we don't have a bunch of ghost target entities.
-            delete newUnits[proj.targetId];
-        } else {
-            newUnits[proj.targetId] = { ...targetUnit, health: newHealth };
-        }
-        unitsChanged = true;
-      } else if (targetBuilding) {
-        const newHealth = Math.max(0, targetBuilding.health - proj.damage);
-        if (newHealth === 0) {
-            particleSystem.spawnEmitter('debris', target.position);
-            delete newBuildings[proj.targetId];
+            particleSystem.spawnEmitter('debris', target.position);            delete newBuildings[proj.targetId];
         } else {
             newBuildings[proj.targetId] = { ...targetBuilding, health: newHealth };
         }
