@@ -59,7 +59,6 @@ export const updateCombatAndHarvest = (
           if (unit.unitType === 'tank') {
              particleSystem.spawnEmitter('smoke', unit.position, {x: -dirToTarget.x, y: -dirToTarget.y});
           }
-
           newUnits[id] = { ...unit, lastAttackTime: gameTime };
           unitsChanged = true;
           projectilesChanged = true;

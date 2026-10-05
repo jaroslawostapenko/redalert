@@ -82,7 +82,6 @@ export interface GameStateData {
   playersInLobby: number;
   isMultiplayerGameStarted: boolean;
   currentNetworkFrame: number;
-
   units: Record<string, Unit>;
   buildings: Record<string, Building>;
   resources: Record<string, ResourceNode>;

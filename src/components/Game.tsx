@@ -6,14 +6,13 @@ import { useGameStore } from '../store/gameStore';
 import { useGameLoop } from '../hooks/useGameLoop';
 
 const Game: React.FC = () => {
-  const initGame = useGameStore(state => state.initGame);
+  const initGame = useGameStore((state) => state.initGame);
 
   useEffect(() => {
     initGame();
   }, [initGame]);
 
-  // Start the game loop
-  useGameLoop();
+  useGameLoop(); // Start the game loop
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>

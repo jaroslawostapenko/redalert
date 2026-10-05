@@ -1,10 +1,10 @@
 import type { Unit, Building, Vector2 } from '../models/types';
+
 import { distance, normalize, multiply, add } from '../utils/math';
 import { applyBoidsSeparation } from '../utils/formation';
 import { GAME_CONFIG } from '../constants/gameData';
 
-export const updateMovement = (units: Record<string, Unit>, _buildings: Record<string, Building>, deltaTime: number): Record<string, Unit> => {
-  const updatedUnits = { ...units };
+export const updateMovement = (units: Record<string, Unit>, _buildings: Record<string, Building>, deltaTime: number): Record<string, Unit> => {  const updatedUnits = { ...units };
   let changed = false;
 
   const dtSeconds = deltaTime / 1000;
@@ -17,8 +17,7 @@ export const updateMovement = (units: Record<string, Unit>, _buildings: Record<s
 
       // Stop condition
       if (distToDestination < 15) {
-          updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined, flowField: undefined };
-          changed = true;
+          updatedUnits[id] = { ...unit, state: 'idle', targetPosition: undefined, path: undefined, flowField: undefined };          changed = true;
           continue;
       }
 
@@ -67,7 +66,6 @@ export const updateMovement = (units: Record<string, Unit>, _buildings: Record<s
       
       // We also update rotation based on final velocity
       const targetRotation = Math.atan2(finalVelocity.y, finalVelocity.x);
-      
       updatedUnits[id] = { ...unit, position: newPos, rotation: targetRotation };
       changed = true;
     }

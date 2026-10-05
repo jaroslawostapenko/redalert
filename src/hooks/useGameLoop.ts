@@ -6,6 +6,7 @@ import { updateFogOfWar } from '../systems/fogOfWar';
 import { updateProjectiles } from '../systems/projectiles';
 import { updateAdvancedAI } from '../systems/advancedAi';
 import { GAME_CONFIG } from '../constants/gameData';
+import { replayRecorder } from '../utils/replayRecorder';
 import { commandBuffer } from '../network/commandBuffer';
 
 export const useGameLoop = () => {
@@ -40,6 +41,30 @@ export const useGameLoop = () => {
             // For example, if commands contains a move action, call state.commandUnits(...)
         }
 
+        // Handle Replay Playback
+        if (replayRecorder.getIsPlaying()) {
+            const commands = replayRecorder.getCommandsForCurrentFrame();
+            for (const cmd of commands) {
+                switch (cmd.action) {
+                    case 'commandUnits':
+                        useGameStore.getState().commandUnits(cmd.payload);
+                        break;
+                    case 'queueBuild':
+                        useGameStore.getState().queueBuild(cmd.payload.itemType, cmd.payload.typeName);
+                        break;
+                    case 'spawnUnit':
+                        useGameStore.getState().spawnUnit(cmd.payload.type, cmd.payload.position, cmd.payload.owner, cmd.payload.specificId);
+                        break;
+                    case 'spawnBuilding':
+                        useGameStore.getState().spawnBuilding(cmd.payload.type, cmd.payload.position, cmd.payload.owner, cmd.payload.specificId);
+                        break;
+                    case 'spawnResource':
+                        useGameStore.getState().spawnResource(cmd.payload.type, cmd.payload.position, cmd.payload.amount, cmd.payload.specificId);
+                        break;
+                }
+            }
+        }
+
         useGameStore.setState((state) => {
             let nextUnits = updateMovement(state.units, state.buildings, dt);
             
@@ -60,13 +85,16 @@ export const useGameLoop = () => {
                 dt
             );
 
-            const aiResult = updateAdvancedAI(
-                projResult.units,
-                projResult.buildings,
-                combatResult.resources,
-                combatResult.players,
-                state.gameTime + dt
-            );
+            let aiResult = { units: projResult.units, buildings: projResult.buildings, players: combatResult.players };
+            if (!replayRecorder.getIsPlaying()) {
+                aiResult = updateAdvancedAI(
+                    projResult.units,
+                    projResult.buildings,
+                    combatResult.resources,
+                    combatResult.players,
+                    state.gameTime + dt
+                );
+            }
 
             const nextFogOfWar = updateFogOfWar({
                 ...state,
@@ -78,7 +106,7 @@ export const useGameLoop = () => {
                 units: aiResult.units,
                 buildings: aiResult.buildings,
                 resources: combatResult.resources,
-                players: aiResult.players as Record<"player" | "enemy" | "neutral", import("../models/types").PlayerState>,
+                players: aiResult.players as any,
                 projectiles: projResult.projectiles,
                 gameTime: state.gameTime + dt,
                 fogOfWar: nextFogOfWar,
@@ -86,6 +114,7 @@ export const useGameLoop = () => {
             };
         });
         
+        replayRecorder.tick();
         previousTimeRef.current = time;
     }
 
